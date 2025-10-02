@@ -1,251 +1,117 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Users, Facebook, X, Eye } from 'lucide-react';
+import { Search, UserPlus, Users, Facebook, X, Eye, UserMinus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { User } from '../types/supabaseTypes';
+import { 
+  fetchAllUsers, 
+  searchUsers, 
+  followUser, 
+  unfollowUser, 
+  getUserFriends, 
+  isFollowing 
+} from '../utils/api';
 
-interface Friend {
-  id: string;
-  name: string;
-  email: string;
-  tier: string;
-  coins: number;
-  xp: number;
-  status: 'pending' | 'accepted' | 'suggested';
-  avatar?: string;
-  mutualFriends?: number;
-  lastActive?: string;
-}
-
-interface FacebookUser {
-  id: string;
-  name: string;
-  email?: string;
-  picture?: {
-    data: {
-      url: string;
-    };
-  };
-}
-
-// Mock friends data
-const mockFriends: Friend[] = [
-  {
-    id: '1',
-    name: 'Sarah Chen',
-    email: 'sarah@example.com',
-    tier: 'Gold',
-    coins: 2450,
-    xp: 980,
-    status: 'accepted',
-    mutualFriends: 3,
-    lastActive: '2 hours ago',
-  },
-  {
-    id: '2',
-    name: 'Mike Johnson',
-    email: 'mike@example.com',
-    tier: 'Silver',
-    coins: 2100,
-    xp: 850,
-    status: 'accepted',
-    mutualFriends: 5,
-    lastActive: '1 day ago',
-  },
-  {
-    id: '3',
-    name: 'Emily Rodriguez',
-    email: 'emily@example.com',
-    tier: 'Bronze',
-    coins: 1890,
-    xp: 720,
-    status: 'pending',
-    mutualFriends: 2,
-    lastActive: '3 days ago',
-  },
-];
-
-const suggestedFriends: Friend[] = [
-  {
-    id: '4',
-    name: 'Alex Thompson',
-    email: 'alex@example.com',
-    tier: 'Silver',
-    coins: 1420,
-    xp: 580,
-    status: 'suggested',
-    mutualFriends: 1,
-    lastActive: '5 hours ago',
-  },
-  {
-    id: '5',
-    name: 'Jordan Lee',
-    email: 'jordan@example.com',
-    tier: 'Gold',
-    coins: 1280,
-    xp: 520,
-    status: 'suggested',
-    mutualFriends: 4,
-    lastActive: '2 days ago',
-  },
-];
-
-declare global {
-  interface Window {
-    FB: any;
-    fbAsyncInit: () => void;
-  }
+interface UserWithFollowStatus extends User {
+  isFollowing?: boolean;
 }
 
 export const Friends: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'friends' | 'suggestions' | 'search'>('friends');
-  const [friends, setFriends] = useState<Friend[]>(mockFriends);
+  const [activeTab, setActiveTab] = useState<'following' | 'explore' | 'search'>('following');
+  const [allUsers, setAllUsers] = useState<UserWithFollowStatus[]>([]);
+  const [myFriends, setMyFriends] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Friend[]>([]);
+  const [searchResults, setSearchResults] = useState<UserWithFollowStatus[]>([]);
+  const [loading, setLoading] = useState(false);
   const [showFacebookModal, setShowFacebookModal] = useState(false);
-  const [facebookFriends, setFacebookFriends] = useState<FacebookUser[]>([]);
-  const [isLoadingFacebook, setIsLoadingFacebook] = useState(false);
 
-  // Initialize Facebook SDK
+  // Load users and friends on component mount
   useEffect(() => {
-    // Load Facebook SDK
-    if (!window.FB) {
-      window.fbAsyncInit = function() {
-        window.FB.init({
-          appId: process.env.REACT_APP_FACEBOOK_APP_ID || 'your-facebook-app-id', // Replace with your Facebook App ID
-          cookie: true,
-          xfbml: true,
-          version: 'v18.0'
-        });
-      };
-
-      // Load the SDK script
-      const script = document.createElement('script');
-      script.async = true;
-      script.defer = true;
-      script.crossOrigin = 'anonymous';
-      script.src = 'https://connect.facebook.net/en_US/sdk.js';
-      document.head.appendChild(script);
+    if (user) {
+      loadData();
     }
-  }, []);
+  }, [user]);
 
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-    if (term.trim()) {
-      // Mock search results - in real app, this would be an API call
-      const mockSearchResults: Friend[] = [
-        {
-          id: '6',
-          name: 'Taylor Swift',
-          email: 'taylor@example.com',
-          tier: 'Diamond',
-          coins: 3500,
-          xp: 1200,
-          status: 'suggested' as const,
-          mutualFriends: 0,
-          lastActive: '1 hour ago',
-        },
-        {
-          id: '7',
-          name: 'John Smith',
-          email: 'john@example.com',
-          tier: 'Bronze',
-          coins: 800,
-          xp: 300,
-          status: 'suggested' as const,
-          mutualFriends: 2,
-          lastActive: '4 hours ago',
-        },
-      ].filter(friend => 
-        friend.name.toLowerCase().includes(term.toLowerCase()) ||
-        friend.email.toLowerCase().includes(term.toLowerCase())
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Load all users and current user's friends in parallel
+      const [users, friends] = await Promise.all([
+        fetchAllUsers(),
+        getUserFriends(user!.id)
+      ]);
+
+      // Filter out current user from the list
+      const filteredUsers = users.filter(u => u.id !== user!.id);
+      
+      // Mark which users are being followed
+      const usersWithFollowStatus = await Promise.all(
+        filteredUsers.map(async (u) => ({
+          ...u,
+          isFollowing: await isFollowing(user!.id, u.id)
+        }))
       );
-      setSearchResults(mockSearchResults);
+
+      setAllUsers(usersWithFollowStatus);
+      setMyFriends(friends);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleSearch = async (term: string) => {
+    setSearchTerm(term);
+    if (term.trim() && user) {
+      try {
+        const results = await searchUsers(term);
+        const filteredResults = results.filter(u => u.id !== user.id);
+        
+        // Add follow status to search results
+        const resultsWithFollowStatus = await Promise.all(
+          filteredResults.map(async (u) => ({
+            ...u,
+            isFollowing: await isFollowing(user.id, u.id)
+          }))
+        );
+        
+        setSearchResults(resultsWithFollowStatus);
+      } catch (error) {
+        console.error('Error searching users:', error);
+        setSearchResults([]);
+      }
     } else {
       setSearchResults([]);
     }
   };
 
-  const connectWithFacebook = () => {
-    setIsLoadingFacebook(true);
-    
-    if (window.FB) {
-      window.FB.login((response: any) => {
-        if (response.authResponse) {
-          // Get user's Facebook friends
-          window.FB.api('/me/friends', { fields: 'name,email,picture' }, (friendsResponse: any) => {
-            if (friendsResponse.data) {
-              setFacebookFriends(friendsResponse.data);
-              setShowFacebookModal(true);
-            } else {
-              // Fallback with mock data for demo purposes
-              setFacebookFriends([
-                {
-                  id: 'fb1',
-                  name: 'Jessica Wilson',
-                  email: 'jessica@facebook.com',
-                  picture: { data: { url: 'https://via.placeholder.com/50' } }
-                },
-                {
-                  id: 'fb2',
-                  name: 'Ryan Davis',
-                  email: 'ryan@facebook.com',
-                  picture: { data: { url: 'https://via.placeholder.com/50' } }
-                },
-              ]);
-              setShowFacebookModal(true);
-            }
-            setIsLoadingFacebook(false);
-          });
-        } else {
-          setIsLoadingFacebook(false);
-          alert('Facebook login was cancelled.');
-        }
-      }, { scope: 'email,user_friends' });
-    } else {
-      // Fallback for demo
-      setTimeout(() => {
-        setFacebookFriends([
-          {
-            id: 'fb1',
-            name: 'Jessica Wilson',
-            email: 'jessica@facebook.com',
-            picture: { data: { url: 'https://via.placeholder.com/50' } }
-          },
-          {
-            id: 'fb2',
-            name: 'Ryan Davis', 
-            email: 'ryan@facebook.com',
-            picture: { data: { url: 'https://via.placeholder.com/50' } }
-          },
-        ]);
-        setShowFacebookModal(true);
-        setIsLoadingFacebook(false);
-      }, 1000);
+  const handleFollowToggle = async (targetUserId: string) => {
+    if (!user) return;
+
+    try {
+      const currentlyFollowing = await isFollowing(user.id, targetUserId);
+      
+      if (currentlyFollowing) {
+        await unfollowUser(user.id, targetUserId);
+      } else {
+        await followUser(user.id, targetUserId);
+      }
+
+      // Refresh data to update UI
+      await loadData();
+      
+      // Update search results if in search tab
+      if (activeTab === 'search' && searchTerm) {
+        handleSearch(searchTerm);
+      }
+    } catch (error) {
+      console.error('Error toggling follow status:', error);
     }
   };
 
-  const addFriend = (friendToAdd: Friend) => {
-    const updatedFriend = { ...friendToAdd, status: 'pending' as const };
-    setFriends(prev => [...prev, updatedFriend]);
-    
-    // Remove from suggestions or search results
-    if (activeTab === 'search') {
-      setSearchResults(prev => prev.filter(f => f.id !== friendToAdd.id));
-    }
-  };
-
-  const acceptFriend = (friendId: string) => {
-    setFriends(prev => 
-      prev.map(friend => 
-        friend.id === friendId ? { ...friend, status: 'accepted' } : friend
-      )
-    );
-  };
-
-  const viewProfile = (friendId: string) => {
-    navigate(`/profile/${friendId}`);
+  const viewProfile = (userId: string) => {
+    // Navigate to user profile or show profile modal
+    console.log('View profile for user:', userId);
   };
 
   const getTierColor = (tier: string) => {
@@ -254,13 +120,69 @@ export const Friends: React.FC = () => {
       case 'Silver': return 'text-gray-600 bg-gray-100';
       case 'Gold': return 'text-yellow-600 bg-yellow-100';
       case 'Platinum': return 'text-cyan-600 bg-cyan-100';
-      case 'Diamond': return 'text-purple-600 bg-purple-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
 
-  const currentFriends = friends.filter(f => f.status === 'accepted');
-  const pendingFriends = friends.filter(f => f.status === 'pending');
+  // Facebook connect functionality (dummy implementation)
+  const connectWithFacebook = () => {
+    setShowFacebookModal(true);
+  };
+
+  const UserCard: React.FC<{ user: UserWithFollowStatus; showFollowButton?: boolean }> = ({ 
+    user: userItem, 
+    showFollowButton = false 
+  }) => (
+    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+          <span className="text-white font-bold">{userItem.name.charAt(0).toUpperCase()}</span>
+        </div>
+        <div>
+          <h4 className="font-semibold text-gray-800">{userItem.name}</h4>
+          <div className="flex items-center gap-2 text-sm">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(userItem.tier)}`}>
+              {userItem.tier}
+            </span>
+            <span className="text-gray-500">{userItem.coins} coins</span>
+            <span className="text-gray-500">•</span>
+            <span className="text-gray-500">{userItem.email}</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => viewProfile(userItem.id)}
+          className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors flex items-center gap-1"
+        >
+          <Eye className="w-4 h-4" />
+          View
+        </button>
+        {showFollowButton && (
+          <button
+            onClick={() => handleFollowToggle(userItem.id)}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1 ${
+              userItem.isFollowing
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {userItem.isFollowing ? (
+              <>
+                <UserMinus className="w-4 h-4" />
+                Unfollow
+              </>
+            ) : (
+              <>
+                <UserPlus className="w-4 h-4" />
+                Follow
+              </>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   if (!user) return null;
 
@@ -271,28 +193,47 @@ export const Friends: React.FC = () => {
         <p className="text-gray-600">Connect with friends and track wellness together</p>
       </div>
 
+      {/* Facebook Connect Button */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Facebook className="w-12 h-12" />
+            <div>
+              <h3 className="text-xl font-bold mb-1">Connect with Facebook</h3>
+              <p className="text-blue-100">Find friends from your Facebook network (Demo)</p>
+            </div>
+          </div>
+          <button
+            onClick={connectWithFacebook}
+            className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
+          >
+            Connect
+          </button>
+        </div>
+      </div>
+
       {/* Tab Navigation */}
       <div className="flex gap-2 overflow-x-auto pb-2">
         <button
-          onClick={() => setActiveTab('friends')}
+          onClick={() => setActiveTab('following')}
           className={`px-6 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${
-            activeTab === 'friends'
+            activeTab === 'following'
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
               : 'bg-white text-gray-600 hover:bg-gray-50'
           }`}
         >
-          My Friends ({currentFriends.length})
+          Following ({myFriends.length})
         </button>
 
         <button
-          onClick={() => setActiveTab('suggestions')}
+          onClick={() => setActiveTab('explore')}
           className={`px-6 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${
-            activeTab === 'suggestions'
+            activeTab === 'explore'
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
               : 'bg-white text-gray-600 hover:bg-gray-50'
           }`}
         >
-          Suggestions
+          Explore Users
         </button>
 
         <button
@@ -307,26 +248,6 @@ export const Friends: React.FC = () => {
         </button>
       </div>
 
-      {/* Facebook Connect Button */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Facebook className="w-12 h-12" />
-            <div>
-              <h3 className="text-xl font-bold mb-1">Connect with Facebook</h3>
-              <p className="text-blue-100">Find friends from your Facebook network</p>
-            </div>
-          </div>
-          <button
-            onClick={connectWithFacebook}
-            disabled={isLoadingFacebook}
-            className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-colors disabled:opacity-50"
-          >
-            {isLoadingFacebook ? 'Loading...' : 'Connect'}
-          </button>
-        </div>
-      </div>
-
       {/* Search Bar (for search tab) */}
       {activeTab === 'search' && (
         <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -334,7 +255,7 @@ export const Friends: React.FC = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Search friends by name or email..."
+              placeholder="Search users by name or email..."
               value={searchTerm}
               onChange={(e) => handleSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors"
@@ -345,131 +266,50 @@ export const Friends: React.FC = () => {
 
       {/* Content based on active tab */}
       <div className="space-y-4">
-        {activeTab === 'friends' && (
-          <>
-            {/* Pending Friend Requests */}
-            {pendingFriends.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Pending Requests</h3>
-                <div className="space-y-3">
-                  {pendingFriends.map((friend) => (
-                    <div key={friend.id} className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-bold">{friend.name.charAt(0)}</span>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-800">{friend.name}</h4>
-                          <p className="text-sm text-gray-500">{friend.mutualFriends} mutual friends</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => acceptFriend(friend.id)}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => viewProfile(friend.id)}
-                          className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Current Friends */}
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">My Friends</h3>
-              {currentFriends.length === 0 ? (
-                <div className="text-center py-8">
-                  <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No friends yet. Start connecting!</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {currentFriends.map((friend) => (
-                    <div key={friend.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-bold">{friend.name.charAt(0)}</span>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-800">{friend.name}</h4>
-                          <div className="flex items-center gap-2 text-sm">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(friend.tier)}`}>
-                              {friend.tier}
-                            </span>
-                            <span className="text-gray-500">{friend.coins} coins</span>
-                            <span className="text-gray-500">•</span>
-                            <span className="text-gray-500">{friend.lastActive}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => viewProfile(friend.id)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-1"
-                        >
-                          <Eye className="w-4 h-4" />
-                          View Profile
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {activeTab === 'suggestions' && (
-          <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Suggested Friends</h3>
-            <div className="space-y-3">
-              {suggestedFriends.map((friend) => (
-                <div key={friend.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold">{friend.name.charAt(0)}</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-800">{friend.name}</h4>
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(friend.tier)}`}>
-                          {friend.tier}
-                        </span>
-                        <span className="text-gray-500">{friend.mutualFriends} mutual friends</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => viewProfile(friend.id)}
-                      className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => addFriend(friend)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-1"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      Add
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {loading && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-gray-500 mt-2">Loading...</p>
           </div>
         )}
 
-        {activeTab === 'search' && (
+        {!loading && activeTab === 'following' && (
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">People You Follow</h3>
+            {myFriends.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">You're not following anyone yet. Start exploring!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {myFriends.map((friend) => (
+                  <UserCard key={friend.id} user={friend} showFollowButton={false} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!loading && activeTab === 'explore' && (
+          <div className="bg-white rounded-2xl shadow-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Discover Users</h3>
+            {allUsers.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No users found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {allUsers.map((userItem) => (
+                  <UserCard key={userItem.id} user={userItem} showFollowButton={true} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!loading && activeTab === 'search' && (
           <div className="bg-white rounded-2xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Search Results</h3>
             {searchResults.length === 0 && searchTerm ? (
@@ -480,42 +320,12 @@ export const Friends: React.FC = () => {
             ) : searchResults.length === 0 ? (
               <div className="text-center py-8">
                 <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Enter a name or email to search for friends</p>
+                <p className="text-gray-500">Enter a name or email to search for users</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {searchResults.map((friend) => (
-                  <div key={friend.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold">{friend.name.charAt(0)}</span>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-gray-800">{friend.name}</h4>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTierColor(friend.tier)}`}>
-                            {friend.tier}
-                          </span>
-                          <span className="text-gray-500">{friend.email}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => viewProfile(friend.id)}
-                        className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => addFriend(friend)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-1"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Add
-                      </button>
-                    </div>
-                  </div>
+                {searchResults.map((userItem) => (
+                  <UserCard key={userItem.id} user={userItem} showFollowButton={true} />
                 ))}
               </div>
             )}
@@ -523,12 +333,12 @@ export const Friends: React.FC = () => {
         )}
       </div>
 
-      {/* Facebook Friends Modal */}
+      {/* Facebook Modal (Dummy) */}
       {showFacebookModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-gray-800">Facebook Friends</h3>
+              <h3 className="text-xl font-bold text-gray-800">Facebook Integration</h3>
               <button
                 onClick={() => setShowFacebookModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg"
@@ -537,53 +347,17 @@ export const Friends: React.FC = () => {
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto">
-              {facebookFriends.length === 0 ? (
-                <div className="text-center py-8">
-                  <Facebook className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No Facebook friends found</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {facebookFriends.map((fbFriend) => (
-                    <div key={fbFriend.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">{fbFriend.name.charAt(0)}</span>
-                        </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-800 text-sm">{fbFriend.name}</h4>
-                          {fbFriend.email && (
-                            <p className="text-xs text-gray-500">{fbFriend.email}</p>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          // Add Facebook friend
-                          const newFriend: Friend = {
-                            id: `fb_${fbFriend.id}`,
-                            name: fbFriend.name,
-                            email: fbFriend.email || '',
-                            tier: 'Bronze',
-                            coins: 0,
-                            xp: 0,
-                            status: 'pending',
-                            mutualFriends: 0,
-                            lastActive: 'Recently joined',
-                          };
-                          addFriend(newFriend);
-                          setShowFacebookModal(false);
-                        }}
-                        className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-1"
-                      >
-                        <UserPlus className="w-3 h-3" />
-                        Invite
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="text-center py-8">
+              <Facebook className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600 mb-4">
+                This is a demo button. Facebook integration would allow you to find friends from your Facebook network.
+              </p>
+              <button
+                onClick={() => setShowFacebookModal(false)}
+                className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Got it!
+              </button>
             </div>
           </div>
         </div>
