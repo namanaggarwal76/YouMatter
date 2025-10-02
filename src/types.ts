@@ -7,7 +7,6 @@ export interface User {
   tier: Tier;
   streakCount: number;
   lastLoginDate: string;
-  walletBalance: number;
   badges: Badge[];
   joinedGroups: string[];
   activeChallenges: UserChallenge[];

@@ -5,12 +5,21 @@ import { Dashboard } from './components/Dashboard';
 import { Chatbot } from './components/Chatbot';
 import { Groups } from './components/Groups';
 import { Leaderboard } from './components/Leaderboard';
-import { Wallet } from './components/Wallet';
+<<<<<<< HEAD
+=======
+import { Challenges } from './components/Challenges';
+>>>>>>> 60677eeeab90ca569c01c3ba1a4e68b70b02a729
 import { Header } from './components/Header';
+import Shop from './components/Shop';
 import { BottomNav } from './components/BottomNav';
 import { NotificationBanner } from './components/NotificationBanner';
 import { Award } from 'lucide-react';
+<<<<<<< HEAD
 import { DailyChallenge } from './components/DailyChallenge';
+=======
+import { Routes, Route } from 'react-router-dom';
+import Profile from './components/profile';
+>>>>>>> 60677eeeab90ca569c01c3ba1a4e68b70b02a729
 
 function AppContent() {
   const { user, addCoins } = useAuth();
@@ -72,6 +81,7 @@ function AppContent() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
+<<<<<<< HEAD
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
@@ -83,26 +93,56 @@ function AppContent() {
       case 'leaderboard':
         return <Leaderboard />;
       case 'challenges':
-        return <DailyChallenge challenges={dailyChallenges} />; // Pass fetched challenges
-      case 'wallet':
-        return <Wallet />;
+        return <DailyChallenge challenges={dailyChallenges} />;
       default:
         return <Dashboard />;
     }
   };
 
+=======
+>>>>>>> 60677eeeab90ca569c01c3ba1a4e68b70b02a729
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <Header onInviteFriend={handleInviteFriend} onShareBadge={handleShareBadge} />
-
+      <Header />
       <div className="max-w-lg mx-auto px-4 py-6 pb-24">
         <NotificationBanner />
+<<<<<<< HEAD
         {renderContent()}
         
+=======
+        <Routes>
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/" element={
+            <>
+              {/* Main dashboard and tabs */}
+              {(() => {
+                switch (activeTab) {
+                  case 'dashboard':
+                    return <Dashboard />;
+                  case 'chat':
+                    return <Chatbot />;
+                  case 'groups':
+                    return <Groups />;
+                  case 'leaderboard':
+                    return <Leaderboard />;
+                  case 'challenges':
+                    return <Challenges />;
+                  case 'shop':
+                    return <Shop coins={user?.coins ?? 0} />;
+                  default:
+                    return <Dashboard />;
+                }
+              })()}
+            </>
+          } />
+        </Routes>
+>>>>>>> 60677eeeab90ca569c01c3ba1a4e68b70b02a729
       </div>
-
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
-
+      {/* Show BottomNav on dashboard and profile routes */}
+      <Routes>
+        <Route path="/" element={<BottomNav activeTab={activeTab} onTabChange={setActiveTab} />} />
+        <Route path="/profile" element={<BottomNav activeTab={activeTab} onTabChange={setActiveTab} />} />
+      </Routes>
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center animate-scale-in">
@@ -117,7 +157,6 @@ function AppContent() {
           </div>
         </div>
       )}
-
       {showShareModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center animate-scale-in">

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Home, Users, Target, Trophy, Wallet, MessageCircle } from 'lucide-react';
+import { Home, Users, Target, Trophy, MessageCircle } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface BottomNavProps {
   activeTab: string;
@@ -12,9 +13,18 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
     { id: 'groups', icon: Users, label: 'Groups' },
     { id: 'challenges', icon: Target, label: 'Challenges' },
     { id: 'leaderboard', icon: Trophy, label: 'Ranks' },
-    { id: 'wallet', icon: Wallet, label: 'Wallet' },
     { id: 'chat', icon: MessageCircle, label: 'Chat' },
+    { id: 'shop', icon: Trophy, label: 'Shop' }, // Reusing Trophy icon, can be changed
   ];
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleTabClick = (tab: string) => {
+    if (location.pathname === '/profile') {
+      navigate('/');
+    }
+    onTabChange(tab);
+  };
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
@@ -27,7 +37,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
             return (
               <button
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
+                onClick={() => handleTabClick(item.id)}
                 className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all ${
                   isActive
                     ? 'text-blue-600'
