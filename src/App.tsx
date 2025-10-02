@@ -6,7 +6,6 @@ import { Chatbot } from './components/Chatbot';
 import { Groups } from './components/Groups';
 import { Leaderboard } from './components/Leaderboard';
 import { Challenges } from './components/Challenges';
-import { Wallet } from './components/Wallet';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { NotificationBanner } from './components/NotificationBanner';
@@ -50,8 +49,6 @@ function AppContent() {
         return <Leaderboard />;
       case 'challenges':
         return <Challenges />;
-      case 'wallet':
-        return <Wallet />;
       default:
         return <Dashboard />;
     }
