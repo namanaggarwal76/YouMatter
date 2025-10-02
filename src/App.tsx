@@ -11,6 +11,8 @@ import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { NotificationBanner } from './components/NotificationBanner';
 import { Award } from 'lucide-react';
+import { Routes, Route } from 'react-router-dom';
+import Profile from './components/profile';
 
 function AppContent() {
   const { user, addCoins } = useAuth();
@@ -38,36 +40,39 @@ function AppContent() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'chat':
-        return <Chatbot />;
-      case 'groups':
-        return <Groups />;
-      case 'leaderboard':
-        return <Leaderboard />;
-      case 'challenges':
-        return <Challenges />;
-      case 'wallet':
-        return <Wallet />;
-      default:
-        return <Dashboard />;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <Header onInviteFriend={handleInviteFriend} onShareBadge={handleShareBadge} />
-
+      <Header />
       <div className="max-w-lg mx-auto px-4 py-6 pb-24">
         <NotificationBanner />
-        {renderContent()}
+        <Routes>
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/" element={
+            <>
+              {/* Main dashboard and tabs */}
+              {(() => {
+                switch (activeTab) {
+                  case 'dashboard':
+                    return <Dashboard />;
+                  case 'chat':
+                    return <Chatbot />;
+                  case 'groups':
+                    return <Groups />;
+                  case 'leaderboard':
+                    return <Leaderboard />;
+                  case 'challenges':
+                    return <Challenges />;
+                  case 'wallet':
+                    return <Wallet />;
+                  default:
+                    return <Dashboard />;
+                }
+              })()}
+            </>
+          } />
+        </Routes>
       </div>
-
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
-
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center animate-scale-in">
@@ -82,7 +87,6 @@ function AppContent() {
           </div>
         </div>
       )}
-
       {showShareModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center animate-scale-in">
