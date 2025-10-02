@@ -1,6 +1,7 @@
 # YouMatter - Wellness Gamification Platform
 
-YouMatter is a comprehensive wellness gamification application that motivates users to maintain healthy habits through an engaging rewards system and social features.
+YouMatter is a comprehensive wellness gamification application that motivates users to maintain healthy habits through an engaging rewards system, social features, and blockchain-inspired wallet integration.
+
 ## 🌟 Overview
 
 YouMatter transforms personal wellness into an engaging, game-like experience where users earn rewards for healthy behaviors, participate in challenges, connect with communities, and track their progress through a sophisticated tier-based system.
@@ -30,6 +31,11 @@ YouMatter transforms personal wellness into an engaging, game-like experience wh
 - **24/7 Support**: Get personalized wellness advice and motivation
 - **Contextual Responses**: AI understands topics like stress, sleep, motivation, and exercise
 - **Reward Integration**: Earn coins and XP for engaging with the chatbot
+
+### 💰 Blockchain Wallet
+- **Digital Rewards**: All earnings stored in a simulated blockchain wallet
+- **Transaction History**: Track all reward earnings and activities
+- **Future Integration**: Built for potential real cryptocurrency implementation
 
 ### 📊 Progress Tracking
 - **Visual Dashboard**: Beautiful charts showing weekly activity patterns
@@ -119,6 +125,7 @@ npm run preview
 - **Groups**: Browse and join wellness communities
 - **Challenges**: View available and active challenges
 - **Leaderboards**: Compare progress with friends and global users
+- **Wallet**: View earnings, transaction history, and blockchain integration
 - **Chat**: Interact with AI wellness assistant
 
 ### Responsive Design

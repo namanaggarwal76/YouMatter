@@ -69,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tier: 'Bronze',
         streakCount: 1,
         lastLoginDate: new Date().toISOString(),
+        walletBalance: 10,
         badges: [
           {
             id: '1',
@@ -115,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     updateUser({
       coins: user.coins + amount,
+      walletBalance: user.walletBalance + amount,
     });
   };
 
