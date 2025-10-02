@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { User } from '../types/supabaseTypes';
+import { calculateStreak, getStreakBonus } from '../utils/streakUtils';
 
 type SupabaseContextType = {
   user: User | null;
@@ -58,12 +59,75 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, []);
 
+  const updateDailyLogin = async (user: User) => {
+    const streakData = calculateStreak(user.daily_login_timestamp, user.streak);
+    
+    if (streakData.isNewDay) {
+      const streakBonus = getStreakBonus(streakData.newStreak);
+      const updatedUser = {
+        ...user,
+        daily_login_timestamp: new Date().toISOString(),
+        streak: streakData.newStreak,
+        coins: user.coins + (streakData.isNewDay ? 10 : 0) + streakBonus, // Daily reward + streak bonus
+        xp: user.xp + (streakData.isNewDay ? 5 : 0), // Daily XP reward
+      };
+
+      console.log(`[Supabase] Updating daily login. Streak: ${streakData.newStreak}, Bonus: ${streakBonus}, Broken: ${streakData.streakBroken}`);
+
+      // Try to update with streak, if it fails, update without streak
+      let { error } = await supabase
+        .from('users')
+        .update({
+          daily_login_timestamp: updatedUser.daily_login_timestamp,
+          streak: updatedUser.streak,
+          coins: updatedUser.coins,
+          xp: updatedUser.xp,
+        })
+        .eq('id', user.id);
+
+      if (error && error.message.includes('streak')) {
+        console.log('[Supabase] Streak column not found in update, trying without streak...');
+        const { error: error2 } = await supabase
+          .from('users')
+          .update({
+            daily_login_timestamp: updatedUser.daily_login_timestamp,
+            coins: updatedUser.coins,
+            xp: updatedUser.xp,
+          })
+          .eq('id', user.id);
+        error = error2;
+      }
+
+      if (!error) {
+        setUser(updatedUser);
+        return updatedUser;
+      } else {
+        console.error('[Supabase] Error updating daily login:', error);
+        setUser(user);
+        return user;
+      }
+    } else {
+      setUser(user);
+      return user;
+    }
+  };
+
   const fetchUserProfile = async (id: string) => {
     console.log('[Supabase] Fetching user profile for id:', id);
     const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+    
+    console.log('[Supabase] Query result:', { data, error });
+    
     if (!error && data) {
       console.log('[Supabase] User found:', data);
-      setUser(data);
+      // Ensure streak exists in the data, default to 0 if not present
+      const userData = {
+        ...data,
+        streak: data.streak !== undefined ? data.streak : 0
+      };
+      console.log('[Supabase] Processing user with streak:', userData.streak);
+      // Update daily login and streak (this will call setUser internally)
+      await updateDailyLogin(userData);
     } else {
       console.warn('[Supabase] User row not found, creating default user row.');
       // Fetch email and name from auth user
@@ -78,10 +142,32 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         coins: 0,
         xp: 0,
         tier: 'Bronze' as const,
-        daily_login_timestamp: Date.now(),
+        daily_login_timestamp: new Date().toISOString(),
+        streak: 0, // Default value for streak
       };
-      const { error: insertError } = await supabase.from('users').insert(defaultUser);
-      if (insertError) {
+      // Try to insert with streak first, if it fails, try without streak
+      let { error: insertError } = await supabase.from('users').insert(defaultUser);
+      
+      if (insertError && insertError.message.includes('streak')) {
+        console.log('[Supabase] Streak column not found, trying without streak...');
+        const userWithoutStreak = {
+          id,
+          email,
+          name,
+          coins: 0,
+          xp: 0,
+          tier: 'Bronze' as const,
+          daily_login_timestamp: new Date().toISOString(),
+        };
+        const { error: insertError2 } = await supabase.from('users').insert(userWithoutStreak);
+        if (insertError2) {
+          console.error('[Supabase] Failed to create user row:', insertError2.message);
+          setUser(null);
+        } else {
+          console.log('[Supabase] Created new user without streak:', userWithoutStreak);
+          setUser({ ...defaultUser, streak: 0 }); // Add streak as 0 in the app state
+        }
+      } else if (insertError) {
         console.error('[Supabase] Failed to create user row:', insertError.message);
         setUser(null);
       } else {
@@ -100,10 +186,53 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    console.log('[Supabase] Starting signup process for:', email);
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        data: {
+          name: name
+        }
+      }
+    });
+    
+    console.log('[Supabase] Auth signup result:', { data: data?.user?.id, error });
+    
     if (!error && data.user) {
-      // Create user profile row
-      await supabase.from('users').insert({ id: data.user.id, email, name });
+      console.log('[Supabase] Creating user profile in users table...');
+      
+      // Simple user object - only essential fields
+      const newUser = {
+        id: data.user.id,
+        email: email,
+        name: name,
+        coins: 0,
+        xp: 0,
+        tier: 'Bronze'
+      };
+      
+      console.log('[Supabase] Attempting to insert user:', newUser);
+      
+      const { data: insertData, error: insertError } = await supabase
+        .from('users')
+        .insert(newUser)
+        .select()
+        .single();
+      
+      if (insertError) {
+        console.error('[Supabase] Failed to create user profile:', insertError);
+        console.error('[Supabase] Error details:', {
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code
+        });
+      } else {
+        console.log('[Supabase] Successfully created user profile:', insertData);
+      }
+      
+      // Always try to fetch the user profile regardless of insert result
       await fetchUserProfile(data.user.id);
     }
     return { data, error };
