@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Users, MapPin, Building, Globe, Star, Heart, MessageCircle, CheckCircle } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';  // local gamified auth
+import { Users, Heart, MessageCircle, CheckCircle, Send } from 'lucide-react';
+import { useAuth } from '../context/AuthContext'; 
 import { supabase } from '../utils/supabaseClient';
 
 interface Group {
@@ -26,10 +26,12 @@ export const Groups: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [socialPosts, setSocialPosts] = useState<SocialPost[]>([]);
+  const [userGroups, setUserGroups] = useState<string[]>(user?.joinedGroups || []);
+  const [newPost, setNewPost] = useState<string>('');
 
   if (!user) return <p className="text-gray-500">Please login to see groups</p>;
 
-  // Fetch groups from Supabase
+  // Fetch groups
   useEffect(() => {
     const fetchGroups = async () => {
       setLoading(true);
@@ -37,10 +39,8 @@ export const Groups: React.FC = () => {
         .from('groups')
         .select('id, name, description, password, city');
 
-      if (error) {
-        console.error('Error fetching groups:', error.message);
-      } else if (data) {
-        // For each group, fetch member count
+      if (error) console.error('Error fetching groups:', error.message);
+      else if (data) {
         const groupsWithCounts = await Promise.all(
           data.map(async (group: Group) => {
             const { count, error: countError } = await supabase
@@ -48,10 +48,7 @@ export const Groups: React.FC = () => {
               .select('id', { count: 'exact', head: true })
               .eq('group_id', group.id);
 
-            if (countError) {
-              console.error('Error fetching member count:', countError.message);
-              return { ...group, memberCount: 0 };
-            }
+            if (countError) return { ...group, memberCount: 0 };
             return { ...group, memberCount: count ?? 0 };
           })
         );
@@ -59,7 +56,6 @@ export const Groups: React.FC = () => {
       }
       setLoading(false);
     };
-
     fetchGroups();
   }, []);
 
@@ -71,51 +67,72 @@ export const Groups: React.FC = () => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching posts:', error.message);
-      } else if (data) {
-        const mappedPosts: SocialPost[] = data.map((post: any) => ({
-          id: post.id,
-          author: post.author_name || 'Anonymous',
-          content: post.content,
-          likes: post.likes || 0,
-          comments: post.comments || 0,
-          timestamp: new Date(post.created_at).toLocaleString(),
-        }));
-        setSocialPosts(mappedPosts);
+      if (!error && data) {
+        setSocialPosts(
+          data.map((post: any) => ({
+            id: post.id,
+            author: post.author_name || 'Anonymous',
+            content: post.content,
+            likes: post.likes || 0,
+            comments: post.comments || 0,
+            timestamp: new Date(post.created_at).toLocaleString(),
+          }))
+        );
       }
     };
-
     fetchPosts();
   }, []);
 
-  const getGroupColor = (type: string) => {
-    switch (type) {
-      case 'local': return 'from-green-500 to-emerald-600';
-      case 'corporate': return 'from-blue-500 to-cyan-600';
-      case 'global': return 'from-purple-500 to-pink-600';
-      case 'sponsored': return 'from-amber-500 to-orange-600';
-      default: return 'from-gray-500 to-gray-600';
-    }
-  };
-
+  // Join or leave group
   const handleToggleMembership = async (groupId: string) => {
-    const alreadyJoined = user.joinedGroups.includes(groupId);
+    const alreadyJoined = userGroups.includes(groupId);
 
     if (alreadyJoined) {
       await supabase.from('group_members').delete().eq('group_id', groupId).eq('user_id', user.id);
-      leaveGroup(groupId); // local gamification update
-      setGroups(prev => prev.map(g =>
-        g.id === groupId ? { ...g, memberCount: Math.max((g.memberCount ?? 1) - 1, 0) } : g
-      ));
+      await supabase
+        .from('users')
+        .update({ groups: supabase.rpc('array_remove', { arr: 'groups', val: groupId }) })
+        .eq('id', user.id);
+
+      leaveGroup(groupId);
+      setUserGroups(prev => prev.filter(id => id !== groupId));
+      setGroups(prev =>
+        prev.map(g =>
+          g.id === groupId ? { ...g, memberCount: Math.max((g.memberCount ?? 1) - 1, 0) } : g
+        )
+      );
     } else {
       await supabase.from('group_members').insert([{ group_id: groupId, user_id: user.id }]);
-      joinGroup(groupId); // local gamification update
-      setGroups(prev => prev.map(g =>
-        g.id === groupId ? { ...g, memberCount: (g.memberCount ?? 0) + 1 } : g
-      ));
+      await supabase
+        .from('users')
+        .update({ groups: supabase.rpc('array_append', { arr: 'groups', val: groupId }) })
+        .eq('id', user.id);
+
+      joinGroup(groupId);
+      setUserGroups(prev => [...prev, groupId]);
+      setGroups(prev =>
+        prev.map(g => (g.id === groupId ? { ...g, memberCount: (g.memberCount ?? 0) + 1 } : g))
+      );
     }
   };
+
+  // Add new post locally
+  const handleAddPost = () => {
+    if (!newPost.trim()) return;
+    const post: SocialPost = {
+      id: `local-${Date.now()}`,
+      author: user.name || 'You',
+      content: newPost,
+      likes: 0,
+      comments: 0,
+      timestamp: new Date().toLocaleString(),
+    };
+    setSocialPosts(prev => [post, ...prev]);
+    setNewPost('');
+  };
+
+  const joinedGroups = groups.filter(g => userGroups.includes(g.id));
+  const availableGroups = groups.filter(g => !userGroups.includes(g.id));
 
   return (
     <div className="space-y-6">
@@ -124,58 +141,87 @@ export const Groups: React.FC = () => {
         <p className="text-gray-600">Connect with others on their wellness journey</p>
       </div>
 
+      {/* My Groups */}
+      <div>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">My Groups</h2>
+        {joinedGroups.length === 0 ? (
+          <p className="text-gray-500">You haven't joined any groups yet.</p>
+        ) : (
+          <div className="space-y-4 mb-6">
+            {joinedGroups.map(group => (
+              <div key={group.id} className="bg-white rounded-2xl shadow-lg p-4 flex justify-between items-start">
+                <div>
+                  <h4 className="font-bold text-gray-800">{group.name}</h4>
+                  <p className="text-gray-600 text-sm">{group.description}</p>
+                  <span className="text-sm text-gray-500">
+                    {(group.memberCount ?? 0).toLocaleString()} members
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleToggleMembership(group.id)}
+                  className="px-4 py-2 rounded-xl font-medium transition-all shadow-md hover:shadow-lg bg-gradient-to-r from-red-500 to-rose-600 text-white"
+                >
+                  Leave Group
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Available Groups */}
       {loading ? (
         <p className="text-gray-500">Loading groups...</p>
       ) : (
         <div className="space-y-4">
-          {groups.map(group => {
-            const joined = user.joinedGroups.includes(group.id);
-
-            return (
-              <div key={group.id} className="bg-white rounded-2xl shadow-lg p-6">
-                <div className="flex items-start gap-4">
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4 mb-2">
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-800">{group.name}</h3>
-                      </div>
-
-                      <button
-                        onClick={() => handleToggleMembership(group.id)}
-                        className={`px-4 py-2 rounded-xl font-medium transition-all shadow-md hover:shadow-lg whitespace-nowrap
-                          ${joined
-                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
-                            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700'
-                          }`}
-                      >
-                        {joined ? (
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-4 h-4" />
-                            <span className="hidden sm:inline">Joined</span>
-                          </div>
-                        ) : (
-                          'Join Group'
-                        )}
-                      </button>
+          {availableGroups.map(group => (
+            <div key={group.id} className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800">{group.name}</h3>
                     </div>
-
-                    <p className="text-gray-600 text-sm mb-3">{group.description}</p>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <Users className="w-4 h-4" />
-                      <span>{(group.memberCount ?? 0).toLocaleString()} members</span>
-                    </div>
+                    <button
+                      onClick={() => handleToggleMembership(group.id)}
+                      className="px-4 py-2 rounded-xl font-medium transition-all shadow-md hover:shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700"
+                    >
+                      Join Group
+                    </button>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-3">{group.description}</p>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Users className="w-4 h-4" />
+                    <span>{(group.memberCount ?? 0).toLocaleString()} members</span>
                   </div>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Feed */}
+      {/* Community Feed */}
       <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">Community Feed</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-4">Community Feed</h2>
+
+        {/* Add post box */}
+        <div className="flex gap-2 mb-6">
+          <input
+            type="text"
+            value={newPost}
+            onChange={e => setNewPost(e.target.value)}
+            placeholder="Share something with the community..."
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleAddPost}
+            className="px-4 py-2 rounded-xl font-medium bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-1"
+          >
+            <Send className="w-4 h-4" /> Post
+          </button>
+        </div>
+
         <div className="space-y-4">
           {socialPosts.map(post => (
             <div key={post.id} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
@@ -204,18 +250,6 @@ export const Groups: React.FC = () => {
               </div>
             </div>
           ))}
-        </div>
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <div className="flex gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-gray-600 to-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-semibold text-sm">{user.name.charAt(0)}</span>
-            </div>
-            <input
-              type="text"
-              placeholder="Share your wellness journey..."
-              className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
         </div>
       </div>
     </div>
