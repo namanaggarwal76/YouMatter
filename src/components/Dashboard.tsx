@@ -7,64 +7,105 @@ export function Dashboard() {
   const { user } = useSupabase();
   const [vitals, setVitals] = useState<{ [key: string]: number | undefined }>({});
   const [loadingVitals, setLoadingVitals] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  console.log('[Dashboard] User:', user);
+  console.log('[Dashboard] Component rendered');
 
   useEffect(() => {
     const fetchVitals = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log('[Dashboard] No user found, skipping vitals fetch');
+        return;
+      }
+      
+      console.log('[Dashboard] Fetching vitals for user ID:', user.id);
       setLoadingVitals(true);
-      // Fetch latest heartrate
-      const { data: heartrateData, error: heartrateError } = await supabase
-        .from('user_heartrate')
-        .select('heartbeat, recordedtime')
-        .eq('userid', user.id)
-        .order('recordedtime', { ascending: false })
-        .limit(1);
-      // Fetch latest sleep
-      const { data: sleepData, error: sleepError } = await supabase
-        .from('user_sleep')
-        .select('hours, recordedtime')
-        .eq('userid', user.id)
-        .order('recordedtime', { ascending: false })
-        .limit(1);
-      // Fetch latest steps
-      const { data: stepsData, error: stepsError } = await supabase
-        .from('user_steps')
-        .select('steps, recordedtime')
-        .eq('userid', user.id)
-        .order('recordedtime', { ascending: false })
-        .limit(1);
-      // Fetch latest water
-      const { data: waterData, error: waterError } = await supabase
-        .from('user_water')
-        .select('liters, recordedtime')
-        .eq('userid', user.id)
-        .order('recordedtime', { ascending: false })
-        .limit(1);
+      setError(null);
+      
+      try {
+        // Fetch latest heartrate
+        console.log('[Dashboard] Fetching heartrate...');
+        const { data: heartrateData, error: heartrateError } = await supabase
+          .from('user_heartrate')
+          .select('heartbeat, recordedtime')
+          .eq('userid', user.id)
+          .order('recordedtime', { ascending: false })
+          .limit(1);
+        
+        console.log('[Dashboard] Heartrate data:', heartrateData, 'error:', heartrateError);
 
-      setVitals({
-        heartrate:
-          heartrateError || !heartrateData || heartrateData.length === 0
-            ? undefined
-            : Number(heartrateData[0].heartbeat),
-        sleep:
-          sleepError || !sleepData || sleepData.length === 0
-            ? undefined
-            : Number(sleepData[0].hours),
-        steps:
-          stepsError || !stepsData || stepsData.length === 0
-            ? undefined
-            : Number(stepsData[0].steps),
-        water:
-          waterError || !waterData || waterData.length === 0
-            ? undefined
-            : Number(waterData[0].liters),
-      });
-      setLoadingVitals(false);
+        // Fetch latest sleep
+        console.log('[Dashboard] Fetching sleep...');
+        const { data: sleepData, error: sleepError } = await supabase
+          .from('user_sleep')
+          .select('hours, recordedtime')
+          .eq('userid', user.id)
+          .order('recordedtime', { ascending: false })
+          .limit(1);
+        
+        console.log('[Dashboard] Sleep data:', sleepData, 'error:', sleepError);
+
+        // Fetch latest steps
+        console.log('[Dashboard] Fetching steps...');
+        const { data: stepsData, error: stepsError } = await supabase
+          .from('user_steps')
+          .select('steps, recordedtime')
+          .eq('userid', user.id)
+          .order('recordedtime', { ascending: false })
+          .limit(1);
+        
+        console.log('[Dashboard] Steps data:', stepsData, 'error:', stepsError);
+
+        // Fetch latest water
+        console.log('[Dashboard] Fetching water...');
+        const { data: waterData, error: waterError } = await supabase
+          .from('user_water')
+          .select('liters, recordedtime')
+          .eq('userid', user.id)
+          .order('recordedtime', { ascending: false })
+          .limit(1);
+        
+        console.log('[Dashboard] Water data:', waterData, 'error:', waterError);
+
+        const newVitals = {
+          heartrate:
+            heartrateError || !heartrateData || heartrateData.length === 0
+              ? undefined
+              : Number(heartrateData[0].heartbeat),
+          sleep:
+            sleepError || !sleepData || sleepData.length === 0
+              ? undefined
+              : Number(sleepData[0].hours),
+          steps:
+            stepsError || !stepsData || stepsData.length === 0
+              ? undefined
+              : Number(stepsData[0].steps),
+          water:
+            waterError || !waterData || waterData.length === 0
+              ? undefined
+              : Number(waterData[0].liters),
+        };
+        
+        console.log('[Dashboard] Final vitals:', newVitals);
+        setVitals(newVitals);
+      } catch (err) {
+        console.error('[Dashboard] Error fetching vitals:', err);
+        setError('Failed to load vitals data');
+      } finally {
+        setLoadingVitals(false);
+      }
     };
+    
     fetchVitals();
   }, [user]);
 
-  if (!user) return null;
+  if (!user) {
+    console.log('[Dashboard] No user, returning null');
+    return <div className="text-center p-8">No user found. Please log in.</div>;
+  }
+  console.log('[Dashboard] Rendering dashboard for user:', user.name);
+
   return (
     <div className="space-y-8">
       <div>
@@ -72,6 +113,7 @@ export function Dashboard() {
           Welcome back, {user.name}!
         </h1>
         <p className="text-gray-600 text-lg">Here's your daily vitals overview</p>
+        {error && <p className="text-red-500 text-sm">{error}</p>}
       </div>
       <div className="grid grid-cols-2 gap-8">
         {/* Heart Rate */}

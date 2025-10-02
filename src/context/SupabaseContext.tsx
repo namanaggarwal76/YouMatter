@@ -17,21 +17,35 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const session = supabase.auth.getSession();
-    session.then(({ data }) => {
-      if (data.session) {
-        fetchUserProfile(data.session.user.id);
+    const initAuth = async () => {
+      try {
+        console.log('[Supabase] Checking for existing session...');
+        const { data } = await supabase.auth.getSession();
+        if (data.session) {
+          console.log('[Supabase] Session found, fetching user profile...');
+          await fetchUserProfile(data.session.user.id);
+        } else {
+          console.log('[Supabase] No session found, user will need to login');
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('[Supabase] Error checking session:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setLoading(true);
+      if (session?.user) {
+        await fetchUserProfile(session.user.id);
       } else {
         setUser(null);
       }
       setLoading(false);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
-        setUser(null);
-      }
     });
     return () => {
       listener.subscription.unsubscribe();
@@ -42,6 +56,7 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     console.log('[Supabase] Fetching user profile for id:', id);
     const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
     if (!error && data) {
+      console.log('[Supabase] User found:', data);
       setUser(data);
     } else {
       console.warn('[Supabase] User row not found, creating default user row.');
@@ -56,13 +71,15 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         name,
         coins: 0,
         xp: 0,
-        tier: 'Bronze',
+        tier: 'Bronze' as const,
         daily_login_timestamp: Date.now(),
       };
       const { error: insertError } = await supabase.from('users').insert(defaultUser);
       if (insertError) {
         console.error('[Supabase] Failed to create user row:', insertError.message);
+        setUser(null);
       } else {
+        console.log('[Supabase] Created new user:', defaultUser);
         setUser(defaultUser);
       }
     }
