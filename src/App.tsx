@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Login } from './components/Login';
+import { useSupabase } from './context/SupabaseContext';
+import { LoginWithNavigation } from './components/Login';
 import { Dashboard } from './components/Dashboard';
 import { Chatbot } from './components/Chatbot';
 import { Groups } from './components/Groups';
@@ -19,12 +21,13 @@ import Profile from './components/profile';
 function AppContent() {
   const { user, addCoins } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [showLogin, setShowLogin] = useState(true);
+  // Remove showLogin state, rely only on user
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const navigate = useNavigate();
 
   const handleLoginSuccess = () => {
-    setShowLogin(false);
+    navigate('/'); // Redirect to dashboard
   };
 
   const handleInviteFriend = () => {
@@ -38,8 +41,21 @@ function AppContent() {
     setTimeout(() => setShowShareModal(false), 3000);
   };
 
-  if (!user || showLogin) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+  const { loading } = useSupabase();
+  if (!user) {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-6 border-4 border-blue-300 border-t-blue-600 rounded-full animate-spin"></div>
+            <h2 className="text-xl font-semibold text-gray-700">Loading your account...</h2>
+            <p className="text-gray-500 mt-2">Please wait while we log you in.</p>
+          </div>
+        </div>
+      );
+    }
+  // Use LoginWithNavigation to ensure navigation works after login
+  return <LoginWithNavigation />;
   }
 
   return (
