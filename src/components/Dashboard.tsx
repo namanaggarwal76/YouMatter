@@ -28,9 +28,9 @@ export function Dashboard() {
         console.log('[Dashboard] Fetching heartrate...');
         const { data: heartrateData, error: heartrateError } = await supabase
           .from('user_heartrate')
-          .select('heartbeat, recordedtime')
-          .eq('userid', user.id)
-          .order('recordedtime', { ascending: false })
+          .select('heartbeat, recorded_at')
+          .eq('user_id', user.id)
+          .order('recorded_at', { ascending: false })
           .limit(1);
         
         console.log('[Dashboard] Heartrate data:', heartrateData, 'error:', heartrateError);
@@ -39,9 +39,9 @@ export function Dashboard() {
         console.log('[Dashboard] Fetching sleep...');
         const { data: sleepData, error: sleepError } = await supabase
           .from('user_sleep')
-          .select('hours, recordedtime')
-          .eq('userid', user.id)
-          .order('recordedtime', { ascending: false })
+          .select('hours, recorded_at')
+          .eq('user_id', user.id)
+          .order('recorded_at', { ascending: false })
           .limit(1);
         
         console.log('[Dashboard] Sleep data:', sleepData, 'error:', sleepError);
@@ -50,9 +50,9 @@ export function Dashboard() {
         console.log('[Dashboard] Fetching steps...');
         const { data: stepsData, error: stepsError } = await supabase
           .from('user_steps')
-          .select('steps, recordedtime')
-          .eq('userid', user.id)
-          .order('recordedtime', { ascending: false })
+          .select('steps, recorded_at')
+          .eq('user_id', user.id)
+          .order('recorded_at', { ascending: false })
           .limit(1);
         
         console.log('[Dashboard] Steps data:', stepsData, 'error:', stepsError);
@@ -61,9 +61,9 @@ export function Dashboard() {
         console.log('[Dashboard] Fetching water...');
         const { data: waterData, error: waterError } = await supabase
           .from('user_water')
-          .select('liters, recordedtime')
-          .eq('userid', user.id)
-          .order('recordedtime', { ascending: false })
+          .select('liters, recorded_at')
+          .eq('user_id', user.id)
+          .order('recorded_at', { ascending: false })
           .limit(1);
         
         console.log('[Dashboard] Water data:', waterData, 'error:', waterError);
