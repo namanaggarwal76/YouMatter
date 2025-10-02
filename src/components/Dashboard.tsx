@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { HeartPulse, Droplets, Footprints, Bed } from 'lucide-react';
 import { useSupabase } from '../context/SupabaseContext';
 import { supabase } from '../utils/supabaseClient';
+import { VitalChart } from './VitalChart';
 
 export function Dashboard() {
   const { user } = useSupabase();
   const [vitals, setVitals] = useState<{ [key: string]: number | undefined }>({});
   const [loadingVitals, setLoadingVitals] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedVital, setSelectedVital] = useState<'heartrate' | 'water' | 'steps' | 'sleep' | null>(null);
 
   console.log('[Dashboard] User:', user);
   console.log('[Dashboard] Component rendered');
@@ -117,41 +119,67 @@ export function Dashboard() {
       </div>
       <div className="grid grid-cols-2 gap-8">
         {/* Heart Rate */}
-        <div className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg">
+        <div 
+          onClick={() => setSelectedVital('heartrate')}
+          className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+        >
           <HeartPulse className="w-10 h-10 mb-3 opacity-90" />
           <p className="text-lg opacity-90 mb-1">Heart Rate</p>
           <p className="text-4xl font-bold">
             {loadingVitals ? '...' : vitals.heartrate !== undefined ? vitals.heartrate : 'No data'}{' '}
             <span className="text-base font-normal">bpm</span>
           </p>
+          <p className="text-xs opacity-75 mt-2">Click to view charts</p>
         </div>
         {/* Water */}
-        <div className="bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg">
+        <div 
+          onClick={() => setSelectedVital('water')}
+          className="bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+        >
           <Droplets className="w-10 h-10 mb-3 opacity-90" />
           <p className="text-lg opacity-90 mb-1">Water</p>
           <p className="text-4xl font-bold">
             {loadingVitals ? '...' : vitals.water !== undefined ? vitals.water : 'No data'}{' '}
             <span className="text-base font-normal">L</span>
           </p>
+          <p className="text-xs opacity-75 mt-2">Click to view charts</p>
         </div>
         {/* Steps */}
-        <div className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg">
+        <div 
+          onClick={() => setSelectedVital('steps')}
+          className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+        >
           <Footprints className="w-10 h-10 mb-3 opacity-90" />
           <p className="text-lg opacity-90 mb-1">Steps</p>
           <p className="text-4xl font-bold">
             {loadingVitals ? '...' : vitals.steps !== undefined ? vitals.steps : 'No data'}
           </p>
+          <p className="text-xs opacity-75 mt-2">Click to view charts</p>
         </div>
         {/* Sleep */}
-        <div className="bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg">
+        <div 
+          onClick={() => setSelectedVital('sleep')}
+          className="bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
+        >
           <Bed className="w-10 h-10 mb-3 opacity-90" />
           <p className="text-lg opacity-90 mb-1">Sleep</p>
           <p className="text-4xl font-bold">
             {loadingVitals ? '...' : vitals.sleep !== undefined ? vitals.sleep : 'No data'}{' '}
             <span className="text-base font-normal">hrs</span>
           </p>
+          <p className="text-xs opacity-75 mt-2">Click to view charts</p>
         </div>
       </div>
+
+      {/* VitalChart Modal */}
+      {selectedVital && (
+        <VitalChart
+          isOpen={selectedVital !== null}
+          onClose={() => setSelectedVital(null)}
+          vitalType={selectedVital}
+          userId={user.id}
+        />
+      )}
     </div>
   );
 }
