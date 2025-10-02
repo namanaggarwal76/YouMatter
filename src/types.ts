@@ -10,6 +10,10 @@ export interface User {
   badges: Badge[];
   joinedGroups: string[];
   activeChallenges: UserChallenge[];
+  heartrate?: number;
+  water?: number;
+  steps?: number;
+  sleep?: number;
 }
 
 export type Tier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond';
@@ -72,4 +76,17 @@ export interface ChatMessage {
   text: string;
   sender: 'user' | 'bot';
   timestamp: string;
+}
+
+export interface Friend {
+  id: string;
+  name: string;
+  email: string;
+  tier: string;
+  coins: number;
+  xp: number;
+  status: 'pending' | 'accepted' | 'suggested';
+  avatar?: string;
+  mutualFriends?: number;
+  lastActive?: string;
 }

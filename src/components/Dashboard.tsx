@@ -86,10 +86,11 @@ const LineGraph: React.FC<{
   yLabel: string;
   unit?: string;
   isHeartrateWeek?: boolean;
-}> = ({ data, xKey, yLabel, unit, isHeartrateWeek }) => {
-  const width = 500;
-  const height = 200;
-  const padding = 50;
+}> = ({ data, xKey, unit, isHeartrateWeek }) => {
+  // Responsive dimensions
+  const width = Math.min(500, window.innerWidth - 80);
+  const height = Math.min(200, window.innerHeight * 0.25);
+  const padding = Math.min(50, width * 0.1);
 
   let values: number[] = [];
   if (isHeartrateWeek) {
@@ -134,7 +135,7 @@ const LineGraph: React.FC<{
     : [];
 
   return (
-    <svg width={width} height={height} className="mb-4">
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto mb-4 max-w-full" preserveAspectRatio="xMidYMid meet">
       {/* Axes */}
       <line
         x1={padding}
@@ -156,7 +157,7 @@ const LineGraph: React.FC<{
           <polyline
             fill="none"
             stroke="#fff"
-            strokeWidth={3}
+            strokeWidth={Math.max(2, width * 0.006)}
             points={points.join(' ')}
           />
           {data.map((d, i) => {
@@ -165,7 +166,7 @@ const LineGraph: React.FC<{
               height -
               padding -
               ((height - 2 * padding) * (d.value! - minY)) / (maxY - minY || 1);
-            return <circle key={i} cx={x} cy={y} r={5} fill="#fff" />;
+            return <circle key={i} cx={x} cy={y} r={Math.max(3, width * 0.01)} fill="#fff" />;
           })}
         </>
       )}
@@ -174,13 +175,13 @@ const LineGraph: React.FC<{
           <polyline
             fill="none"
             stroke="#f87171"
-            strokeWidth={3}
+            strokeWidth={Math.max(2, width * 0.006)}
             points={pointsMax.join(' ')}
           />
           <polyline
             fill="none"
             stroke="#38bdf8"
-            strokeWidth={3}
+            strokeWidth={Math.max(2, width * 0.006)}
             points={pointsMin.join(' ')}
           />
           {data.map((d, i) => {
@@ -195,8 +196,8 @@ const LineGraph: React.FC<{
               ((height - 2 * padding) * (d.min! - minY)) / (maxY - minY || 1);
             return (
               <g key={i}>
-                <circle cx={x} cy={yMax} r={5} fill="#f87171" />
-                <circle cx={x} cy={yMin} r={5} fill="#38bdf8" />
+                <circle cx={x} cy={yMax} r={Math.max(3, width * 0.01)} fill="#f87171" />
+                <circle cx={x} cy={yMin} r={Math.max(3, width * 0.01)} fill="#38bdf8" />
               </g>
             );
           })}
@@ -211,7 +212,7 @@ const LineGraph: React.FC<{
             key={i}
             x={x}
             y={y}
-            fontSize={16}
+            fontSize={Math.max(12, width * 0.032)}
             fill="#fff"
             textAnchor="middle"
           >
@@ -223,7 +224,7 @@ const LineGraph: React.FC<{
       <text
         x={10}
         y={padding}
-        fontSize={16}
+        fontSize={Math.max(12, width * 0.032)}
         fill="#fff"
         textAnchor="start"
       >
@@ -233,7 +234,7 @@ const LineGraph: React.FC<{
       <text
         x={10}
         y={height - padding}
-        fontSize={16}
+        fontSize={Math.max(12, width * 0.032)}
         fill="#fff"
         textAnchor="start"
       >
@@ -261,33 +262,33 @@ const VitalPopup: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-12 text-white shadow-2xl relative w-[700px] max-w-full min-h-[600px] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-4 md:p-8 lg:p-12 text-white shadow-2xl relative w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         <button
-          className="absolute top-6 right-6 text-white hover:text-gray-300"
+          className="absolute top-4 right-4 text-white hover:text-gray-300"
           onClick={onClose}
         >
-          <X className="w-8 h-8" />
+          <X className="w-6 h-6 md:w-8 md:h-8" />
         </button>
-        <div className="flex items-center gap-4 mb-6">
-          {vital === 'heartrate' && <HeartPulse className="w-14 h-14 opacity-90" />}
-          {vital === 'water' && <Droplets className="w-14 h-14 opacity-90" />}
-          {vital === 'steps' && <Footprints className="w-14 h-14 opacity-90" />}
-          {vital === 'sleep' && <Bed className="w-14 h-14 opacity-90" />}
-          <div>
-            <p className="text-2xl opacity-90 mb-1 capitalize">{vital}</p>
-            <p className="text-5xl font-bold">
+        <div className="flex items-center gap-2 md:gap-4 mb-4 md:mb-6">
+          {vital === 'heartrate' && <HeartPulse className="w-8 h-8 md:w-14 md:h-14 opacity-90 flex-shrink-0" />}
+          {vital === 'water' && <Droplets className="w-8 h-8 md:w-14 md:h-14 opacity-90 flex-shrink-0" />}
+          {vital === 'steps' && <Footprints className="w-8 h-8 md:w-14 md:h-14 opacity-90 flex-shrink-0" />}
+          {vital === 'sleep' && <Bed className="w-8 h-8 md:w-14 md:h-14 opacity-90 flex-shrink-0" />}
+          <div className="min-w-0">
+            <p className="text-lg md:text-2xl opacity-90 mb-1 capitalize">{vital}</p>
+            <p className="text-2xl md:text-5xl font-bold">
               {vitals[vital]}{' '}
-              <span className="text-xl font-normal">
+              <span className="text-sm md:text-xl font-normal">
                 {vital === 'heartrate' ? 'bpm' : vital === 'water' ? 'L' : vital === 'sleep' ? 'hrs' : ''}
               </span>
             </p>
           </div>
         </div>
         <div className="flex flex-col flex-1">
-          <div className="flex gap-4 mb-4 justify-center">
+          <div className="flex gap-2 md:gap-4 mb-4 justify-center">
             <button
-              className={`px-4 py-2 rounded-lg text-lg transition ${
+              className={`px-3 py-2 md:px-4 md:py-2 rounded-lg text-sm md:text-lg transition ${
                 view === 'day'
                   ? 'bg-white bg-opacity-20 font-bold'
                   : 'bg-white bg-opacity-10'
@@ -297,7 +298,7 @@ const VitalPopup: React.FC<{
               Daily
             </button>
             <button
-              className={`px-4 py-2 rounded-lg text-lg transition ${
+              className={`px-3 py-2 md:px-4 md:py-2 rounded-lg text-sm md:text-lg transition ${
                 view === 'week'
                   ? 'bg-white bg-opacity-20 font-bold'
                   : 'bg-white bg-opacity-10'
@@ -307,27 +308,29 @@ const VitalPopup: React.FC<{
               Weekly
             </button>
           </div>
-          <div className="flex-1 flex flex-col items-center">
+          <div className="flex-1 flex flex-col items-center overflow-hidden">
             {/* Graphs */}
             {vital === 'heartrate' && (
               <>
-                {view === 'day' ? (
-                  <LineGraph
-                    data={vitalsHistory.heartrate}
-                    xKey="time"
-                    yLabel="Heartrate"
-                    unit=" bpm"
-                  />
-                ) : (
-                  <LineGraph
-                    data={vitalsHistory.heartrateWeek}
-                    xKey="day"
-                    yLabel="Heartrate"
-                    unit=" bpm"
-                    isHeartrateWeek
-                  />
-                )}
-                <div className="flex justify-between w-full text-lg mt-4 px-4">
+                <div className="w-full flex justify-center">
+                  {view === 'day' ? (
+                    <LineGraph
+                      data={vitalsHistory.heartrate}
+                      xKey="time"
+                      yLabel="Heartrate"
+                      unit=" bpm"
+                    />
+                  ) : (
+                    <LineGraph
+                      data={vitalsHistory.heartrateWeek}
+                      xKey="day"
+                      yLabel="Heartrate"
+                      unit=" bpm"
+                      isHeartrateWeek
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col md:flex-row justify-between w-full text-sm md:text-lg mt-4 px-2 md:px-4 gap-2 md:gap-0">
                   {view === 'day' ? (
                     <>
                       <span>
@@ -364,13 +367,15 @@ const VitalPopup: React.FC<{
             )}
             {vital === 'water' && (
               <>
-                <LineGraph
-                  data={view === 'day' ? vitalsHistory.water : vitalsHistory.waterWeek}
-                  xKey={view === 'day' ? 'time' : 'day'}
-                  yLabel="Water"
-                  unit=" L"
-                />
-                <div className="flex justify-between w-full text-lg mt-4 px-4">
+                <div className="w-full flex justify-center">
+                  <LineGraph
+                    data={view === 'day' ? vitalsHistory.water : vitalsHistory.waterWeek}
+                    xKey={view === 'day' ? 'time' : 'day'}
+                    yLabel="Water"
+                    unit=" L"
+                  />
+                </div>
+                <div className="flex flex-col md:flex-row justify-between w-full text-sm md:text-lg mt-4 px-2 md:px-4 gap-2 md:gap-0">
                   {view === 'day' ? (
                     <>
                       <span>
@@ -395,12 +400,14 @@ const VitalPopup: React.FC<{
             )}
             {vital === 'steps' && (
               <>
-                <LineGraph
-                  data={view === 'day' ? vitalsHistory.steps : vitalsHistory.stepsWeek}
-                  xKey={view === 'day' ? 'time' : 'day'}
-                  yLabel="Steps"
-                />
-                <div className="flex justify-between w-full text-lg mt-4 px-4">
+                <div className="w-full flex justify-center">
+                  <LineGraph
+                    data={view === 'day' ? vitalsHistory.steps : vitalsHistory.stepsWeek}
+                    xKey={view === 'day' ? 'time' : 'day'}
+                    yLabel="Steps"
+                  />
+                </div>
+                <div className="flex flex-col md:flex-row justify-between w-full text-sm md:text-lg mt-4 px-2 md:px-4 gap-2 md:gap-0">
                   {view === 'day' ? (
                     <>
                       <span>
@@ -437,13 +444,15 @@ const VitalPopup: React.FC<{
             )}
             {vital === 'sleep' && (
               <>
-                <LineGraph
-                  data={view === 'day' ? vitalsHistory.sleep : vitalsHistory.sleepWeek}
-                  xKey={view === 'day' ? 'time' : 'day'}
-                  yLabel="Sleep"
-                  unit=" hrs"
-                />
-                <div className="flex justify-between w-full text-lg mt-4 px-4">
+                <div className="w-full flex justify-center">
+                  <LineGraph
+                    data={view === 'day' ? vitalsHistory.sleep : vitalsHistory.sleepWeek}
+                    xKey={view === 'day' ? 'time' : 'day'}
+                    yLabel="Sleep"
+                    unit=" hrs"
+                  />
+                </div>
+                <div className="flex flex-col md:flex-row justify-between w-full text-sm md:text-lg mt-4 px-2 md:px-4 gap-2 md:gap-0">
                   {view === 'day' ? (
                     <>
                       <span>
@@ -506,50 +515,50 @@ export const Dashboard: React.FC = () => {
         </h1>
         <p className="text-gray-600 text-lg">Here's your daily vitals overview</p>
       </div>
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
         {/* Heartrate */}
         <div
-          className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg"
+          className="bg-gradient-to-br from-rose-400 to-red-500 rounded-2xl p-4 md:p-6 lg:p-8 text-white cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
           onClick={() => setExpanded('heartrate')}
         >
-          <HeartPulse className="w-10 h-10 mb-3 opacity-90" />
-          <p className="text-lg opacity-90 mb-1">Heartrate</p>
-          <p className="text-4xl font-bold">
+          <HeartPulse className="w-8 h-8 md:w-10 md:h-10 mb-2 md:mb-3 opacity-90" />
+          <p className="text-sm md:text-lg opacity-90 mb-1">Heartrate</p>
+          <p className="text-2xl md:text-3xl lg:text-4xl font-bold">
             {vitals.heartrate}{' '}
-            <span className="text-base font-normal">bpm</span>
+            <span className="text-xs md:text-base font-normal">bpm</span>
           </p>
         </div>
         {/* Water */}
         <div
-          className="bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg"
+          className="bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl p-4 md:p-6 lg:p-8 text-white cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
           onClick={() => setExpanded('water')}
         >
-          <Droplets className="w-10 h-10 mb-3 opacity-90" />
-          <p className="text-lg opacity-90 mb-1">Water</p>
-          <p className="text-4xl font-bold">
+          <Droplets className="w-8 h-8 md:w-10 md:h-10 mb-2 md:mb-3 opacity-90" />
+          <p className="text-sm md:text-lg opacity-90 mb-1">Water</p>
+          <p className="text-2xl md:text-3xl lg:text-4xl font-bold">
             {vitals.water}{' '}
-            <span className="text-base font-normal">L</span>
+            <span className="text-xs md:text-base font-normal">L</span>
           </p>
         </div>
         {/* Steps */}
         <div
-          className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg"
+          className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl p-4 md:p-6 lg:p-8 text-white cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
           onClick={() => setExpanded('steps')}
         >
-          <Footprints className="w-10 h-10 mb-3 opacity-90" />
-          <p className="text-lg opacity-90 mb-1">Steps</p>
-          <p className="text-4xl font-bold">{vitals.steps}</p>
+          <Footprints className="w-8 h-8 md:w-10 md:h-10 mb-2 md:mb-3 opacity-90" />
+          <p className="text-sm md:text-lg opacity-90 mb-1">Steps</p>
+          <p className="text-2xl md:text-3xl lg:text-4xl font-bold">{vitals.steps}</p>
         </div>
         {/* Sleep */}
         <div
-          className="bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg"
+          className="bg-gradient-to-br from-indigo-400 to-purple-500 rounded-2xl p-4 md:p-6 lg:p-8 text-white cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
           onClick={() => setExpanded('sleep')}
         >
-          <Bed className="w-10 h-10 mb-3 opacity-90" />
-          <p className="text-lg opacity-90 mb-1">Sleep</p>
-          <p className="text-4xl font-bold">
+          <Bed className="w-8 h-8 md:w-10 md:h-10 mb-2 md:mb-3 opacity-90" />
+          <p className="text-sm md:text-lg opacity-90 mb-1">Sleep</p>
+          <p className="text-2xl md:text-3xl lg:text-4xl font-bold">
             {vitals.sleep}{' '}
-            <span className="text-base font-normal">hrs</span>
+            <span className="text-xs md:text-base font-normal">hrs</span>
           </p>
         </div>
       </div>

@@ -6,6 +6,8 @@ import { Chatbot } from './components/Chatbot';
 import { Groups } from './components/Groups';
 import { Leaderboard } from './components/Leaderboard';
 import { Challenges } from './components/Challenges';
+import { Friends } from './components/Friends';
+import { FriendProfile } from './components/FriendProfile';
 import { Header } from './components/Header';
 import Shop from './components/Shop';
 import { BottomNav } from './components/BottomNav';
@@ -47,6 +49,7 @@ function AppContent() {
         <NotificationBanner />
         <Routes>
           <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/:friendId" element={<FriendProfile />} />
           <Route path="/" element={
             <>
               {/* Main dashboard and tabs */}
@@ -54,6 +57,8 @@ function AppContent() {
                 switch (activeTab) {
                   case 'dashboard':
                     return <Dashboard />;
+                  case 'friends':
+                    return <Friends />;
                   case 'chat':
                     return <Chatbot />;
                   case 'groups':
@@ -76,6 +81,7 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<BottomNav activeTab={activeTab} onTabChange={setActiveTab} />} />
         <Route path="/profile" element={<BottomNav activeTab={activeTab} onTabChange={setActiveTab} />} />
+        <Route path="/profile/:friendId" element={null} />
       </Routes>
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
