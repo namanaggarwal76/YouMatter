@@ -113,9 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addCoins = (amount: number) => {
     if (!user) return;
-    updateUser({
-      coins: user.coins + amount,
-    });
+    updateUser({ coins: user.coins + amount });
   };
 
   const addXP = (amount: number) => {
@@ -161,12 +159,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateChallengeProgress = (challengeId: string, progress: number) => {
     if (!user) return;
 
-    const updatedChallenges = user.activeChallenges.map(c => {
-      if (c.challengeId === challengeId) {
-        return { ...c, progress };
-      }
-      return c;
-    });
+    const updatedChallenges = user.activeChallenges.map(c =>
+      c.challengeId === challengeId ? { ...c, progress } : c
+    );
 
     updateUser({ activeChallenges: updatedChallenges });
   };
