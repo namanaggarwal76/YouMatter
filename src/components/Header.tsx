@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Award, User, Bluetooth, Check, X } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useSupabase } from '../context/SupabaseContext';
 import { useNavigate } from 'react-router-dom';
 // Make sure Header is rendered inside a <BrowserRouter> in your app entry point
 
@@ -115,7 +115,7 @@ const BluetoothPopup: React.FC<BluetoothPopupProps> = ({ onClose }) => {
 };
 
 export const Header: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, signOut } = useSupabase();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [bluetoothOpen, setBluetoothOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -203,7 +203,7 @@ export const Header: React.FC = () => {
                     className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700"
                     onClick={() => {
                       setDropdownOpen(false);
-                      logout();
+                      signOut();
                     }}
                   >
                     Logout
