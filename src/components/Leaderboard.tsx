@@ -1,46 +1,81 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Trophy, Medal, Crown, Coins, Award } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { LEADERBOARD_FRIENDS, LEADERBOARD_GLOBAL } from '../utils/mockData';
-import { LeaderboardEntry } from '../types';
+import { supabase } from '../utils/supabaseClient';
 
-type TabType = 'friends' | 'global' | 'group';
+type TabType = 'friends' | 'global';
+
+interface LeaderboardEntry {
+  id: string;
+  name: string;
+  email: string;
+  coins: number;
+  xp: number;
+  tier: string;
+  daily_login_timestamp: string;
+  streak: number;
+  rank: number;
+}
 
 export const Leaderboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('friends');
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('global');
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
 
-  if (!user) return null;
+  useEffect(() => {
+    if (!user) return;
 
-  const getLeaderboardData = (): LeaderboardEntry[] => {
-    switch (activeTab) {
-      case 'friends':
-        return LEADERBOARD_FRIENDS;
-      case 'global':
-        return LEADERBOARD_GLOBAL;
-      case 'group':
-        return [
-          { id: '1', name: 'Mike Johnson', coins: 2100, xp: 850, rank: 1 },
-          { id: '2', name: user.name, coins: user.coins, xp: user.xp, rank: 2 },
-          { id: '3', name: 'Alex Thompson', coins: 1420, xp: 580, rank: 3 },
-          { id: '4', name: 'Jordan Lee', coins: 1280, xp: 520, rank: 4 },
-          { id: '5', name: 'Taylor Swift', coins: 1150, xp: 480, rank: 5 },
-        ];
-      default:
-        return LEADERBOARD_FRIENDS;
-    }
-  };
+    const fetchLeaderboard = async () => {
+      try {
+        // Fetch all users
+        let { data: usersData, error } = await supabase
+          .from('users')
+          .select('id, name, email, coins, xp, tier, daily_login_timestamp, streak');
+
+        if (error || !usersData) {
+          console.error('Error fetching users:', error);
+          return;
+        }
+
+        // Filter friends if needed
+        if (activeTab === 'friends') {
+          const { data: friendsData, error: friendsError } = await supabase
+            .from('friends')
+            .select('user_id, friend_id')
+            .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+
+          if (friendsError || !friendsData) {
+            console.error('Error fetching friends:', friendsError);
+            return;
+          }
+
+          const friendIds = friendsData.map(f =>
+            f.user_id === user.id ? f.friend_id : f.user_id
+          );
+          usersData = usersData.filter(u => friendIds.includes(u.id));
+        }
+
+        // Sort by coins + xp as score (or customize)
+        const sorted = usersData
+          .map((u, idx) => ({ ...u, rank: idx + 1 }))
+          .sort((a, b) => (b.coins + b.xp) - (a.coins + a.xp))
+          .map((u, idx) => ({ ...u, rank: idx + 1 }));
+
+        setLeaderboardData(sorted);
+      } catch (err) {
+        console.error('Leaderboard fetch error:', err);
+      }
+    };
+
+    fetchLeaderboard();
+  }, [user, activeTab]);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
-      case 1:
-        return <Crown className="w-6 h-6 text-amber-500" />;
-      case 2:
-        return <Medal className="w-6 h-6 text-gray-400" />;
-      case 3:
-        return <Medal className="w-6 h-6 text-orange-600" />;
-      default:
-        return <span className="text-gray-500 font-semibold">{rank}</span>;
+      case 1: return <Crown className="w-6 h-6 text-amber-500" />;
+      case 2: return <Medal className="w-6 h-6 text-gray-400" />;
+      case 3: return <Medal className="w-6 h-6 text-orange-600" />;
+      default: return <span className="text-gray-500 font-semibold">{rank}</span>;
     }
   };
 
@@ -52,7 +87,7 @@ export const Leaderboard: React.FC = () => {
     return 'bg-white';
   };
 
-  const leaderboardData = getLeaderboardData();
+  if (!user) return null;
 
   return (
     <div className="space-y-6">
@@ -83,22 +118,11 @@ export const Leaderboard: React.FC = () => {
         >
           Global
         </button>
-
-        <button
-          onClick={() => setActiveTab('group')}
-          className={`px-6 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${
-            activeTab === 'group'
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-              : 'bg-white text-gray-600 hover:bg-gray-50'
-          }`}
-        >
-          My Group
-        </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-        {leaderboardData.slice(0, 3).map((entry) => {
-          const isUser = entry.name === user.name;
+        {leaderboardData.map((entry) => {
+          const isUser = entry.id === user.id;
           return (
             <div
               key={entry.id}
@@ -110,9 +134,7 @@ export const Leaderboard: React.FC = () => {
                 </div>
 
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold text-lg">
-                    {entry.name.charAt(0)}
-                  </span>
+                  <span className="text-white font-bold text-lg">{entry.name.charAt(0)}</span>
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -133,6 +155,11 @@ export const Leaderboard: React.FC = () => {
                       <Award className="w-4 h-4" />
                       <span className="font-semibold">{entry.xp} XP</span>
                     </div>
+
+                    <div className="flex items-center gap-1 text-gray-500">
+                      <span className="text-xs">{entry.tier}</span>
+                      <span className="text-xs">• Streak: {entry.streak}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -140,67 +167,6 @@ export const Leaderboard: React.FC = () => {
           );
         })}
       </div>
-
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Other Rankings</h3>
-
-        <div className="space-y-3">
-          {leaderboardData.slice(3).map((entry) => {
-            const isUser = entry.name === user.name;
-            return (
-              <div
-                key={entry.id}
-                className={`flex items-center gap-4 p-4 rounded-xl ${
-                  isUser ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-400' : 'bg-gray-50'
-                }`}
-              >
-                <div className="w-8 text-center">
-                  <span className="text-gray-600 font-semibold">{entry.rank}</span>
-                </div>
-
-                <div className="w-10 h-10 bg-gradient-to-br from-gray-600 to-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-semibold text-sm">
-                    {entry.name.charAt(0)}
-                  </span>
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-gray-800 truncate">{entry.name}</span>
-                    {isUser && (
-                      <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded-full">You</span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-4 text-xs text-gray-600">
-                    <div className="flex items-center gap-1">
-                      <Coins className="w-3 h-3" />
-                      <span>{entry.coins}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <Award className="w-3 h-3" />
-                      <span>{entry.xp} XP</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {activeTab === 'global' && (
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
-          <div className="flex items-center gap-4">
-            <Trophy className="w-12 h-12" />
-            <div>
-              <h3 className="text-xl font-bold mb-1">Your Global Rank</h3>
-              <p className="text-blue-100">You're ranked #{user.coins > 2000 ? '1,247' : '2,847'} globally</p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
