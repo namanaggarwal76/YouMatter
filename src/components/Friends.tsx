@@ -1,61 +1,101 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserPlus, Users, Facebook, X, Eye, UserMinus } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { User } from '../types/supabaseTypes';
+import { useSupabase } from '../context/SupabaseContext';
+import { User as SupabaseUser } from '../types/supabaseTypes';
 import { 
   fetchAllUsers, 
   searchUsers, 
   followUser, 
   unfollowUser, 
   getUserFriends, 
-  isFollowing 
+  isFollowing,
+  createSampleUsers
 } from '../utils/api';
 
-interface UserWithFollowStatus extends User {
+interface UserWithFollowStatus extends SupabaseUser {
   isFollowing?: boolean;
 }
 
 export const Friends: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useSupabase();
   const [activeTab, setActiveTab] = useState<'following' | 'explore' | 'search'>('following');
   const [allUsers, setAllUsers] = useState<UserWithFollowStatus[]>([]);
-  const [myFriends, setMyFriends] = useState<User[]>([]);
+  const [myFriends, setMyFriends] = useState<SupabaseUser[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<UserWithFollowStatus[]>([]);
   const [loading, setLoading] = useState(false);
   const [showFacebookModal, setShowFacebookModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Debug user state
+  useEffect(() => {
+    console.log('Friends component - User state:', user);
+    console.log('Friends component - User exists:', !!user);
+    if (user) {
+      console.log('Friends component - User details:', { id: user.id, email: user.email, name: user.name });
+    }
+  }, [user]);
 
   // Load users and friends on component mount
   useEffect(() => {
     if (user) {
+      console.log('User authenticated, loading data');
       loadData();
+    } else {
+      console.log('No user found');
     }
   }, [user]);
 
   const loadData = async () => {
+    if (!user) {
+      setError('Please log in to view friends');
+      return;
+    }
+
     setLoading(true);
+    setError(null);
+    
     try {
+      console.log('Loading friends data for user:', user.id, user.email);
+      
       // Load all users and current user's friends in parallel
       const [users, friends] = await Promise.all([
         fetchAllUsers(),
-        getUserFriends(user!.id)
+        getUserFriends(user.id)
       ]);
 
-      // Filter out current user from the list
-      const filteredUsers = users.filter(u => u.id !== user!.id);
+      console.log('Fetched users:', users.length);
+      console.log('Fetched friends:', friends.length);
+
+      // Check if we're using mock data (mock users have specific IDs)
+      const isUsingMockData = users.some(u => u.id.startsWith('mock-user-'));
+      
+      // Filter out current user from the list by email since IDs might not match
+      const filteredUsers = users.filter(u => u.email !== user.email);
       
       // Mark which users are being followed
       const usersWithFollowStatus = await Promise.all(
         filteredUsers.map(async (u) => ({
           ...u,
-          isFollowing: await isFollowing(user!.id, u.id)
+          isFollowing: await isFollowing(user.id, u.id)
         }))
       );
 
       setAllUsers(usersWithFollowStatus);
       setMyFriends(friends);
-    } catch (error) {
-      console.error('Error loading data:', error);
+      setIsInitialized(true);
+      
+      if (isUsingMockData) {
+        setError('Demo Mode: Showing sample users. Add real users to your Supabase users table to see them here.');
+      } else if (users.length > 0) {
+        setError(null);
+      } else {
+        setError('No users found in your database. Add some users to the users table.');
+      }
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setError('Using sample data for demonstration. Database connection may be unavailable.');
     }
     setLoading(false);
   };
@@ -63,9 +103,13 @@ export const Friends: React.FC = () => {
   const handleSearch = async (term: string) => {
     setSearchTerm(term);
     if (term.trim() && user) {
+      setLoading(true);
       try {
+        console.log('Searching for users:', term);
         const results = await searchUsers(term);
-        const filteredResults = results.filter(u => u.id !== user.id);
+        console.log('Search results:', results.length);
+        
+        const filteredResults = results.filter(u => u.email !== user.email);
         
         // Add follow status to search results
         const resultsWithFollowStatus = await Promise.all(
@@ -76,36 +120,51 @@ export const Friends: React.FC = () => {
         );
         
         setSearchResults(resultsWithFollowStatus);
-      } catch (error) {
-        console.error('Error searching users:', error);
+      } catch (err) {
+        console.error('Error searching users:', err);
+        setError('Failed to search users. Please try again.');
         setSearchResults([]);
       }
+      setLoading(false);
     } else {
       setSearchResults([]);
     }
   };
 
   const handleFollowToggle = async (targetUserId: string) => {
-    if (!user) return;
+    if (!user) {
+      setError('Please log in to follow users');
+      return;
+    }
 
     try {
+      console.log('Toggling follow status for user:', targetUserId);
       const currentlyFollowing = await isFollowing(user.id, targetUserId);
+      console.log('Currently following:', currentlyFollowing);
       
+      let success = false;
       if (currentlyFollowing) {
-        await unfollowUser(user.id, targetUserId);
+        success = await unfollowUser(user.id, targetUserId);
+        console.log('Unfollow result:', success);
       } else {
-        await followUser(user.id, targetUserId);
+        success = await followUser(user.id, targetUserId);
+        console.log('Follow result:', success);
       }
 
-      // Refresh data to update UI
-      await loadData();
-      
-      // Update search results if in search tab
-      if (activeTab === 'search' && searchTerm) {
-        handleSearch(searchTerm);
+      if (success) {
+        // Refresh data to update UI
+        await loadData();
+        
+        // Update search results if in search tab
+        if (activeTab === 'search' && searchTerm) {
+          handleSearch(searchTerm);
+        }
+      } else {
+        setError('Failed to update follow status. Please try again.');
       }
-    } catch (error) {
-      console.error('Error toggling follow status:', error);
+    } catch (err) {
+      console.error('Error toggling follow status:', err);
+      setError('Failed to update follow status. Please try again.');
     }
   };
 
@@ -184,7 +243,19 @@ export const Friends: React.FC = () => {
     </div>
   );
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+          <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Loading Friends...</h3>
+          <p className="text-gray-600">
+            Please wait while we load your friend data.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -264,12 +335,30 @@ export const Friends: React.FC = () => {
         </div>
       )}
 
+      {/* Error Display */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <div className="flex items-center gap-3">
+            <X className="w-5 h-5 text-red-600" />
+            <p className="text-red-800 font-medium">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="ml-auto text-red-600 hover:text-red-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content based on active tab */}
       <div className="space-y-4">
         {loading && (
           <div className="bg-white rounded-2xl shadow-lg p-6 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-500 mt-2">Loading...</p>
+            <p className="text-gray-500 mt-2">
+              {activeTab === 'search' ? 'Searching...' : 'Loading friends...'}
+            </p>
           </div>
         )}
 
@@ -284,7 +373,7 @@ export const Friends: React.FC = () => {
             ) : (
               <div className="space-y-3">
                 {myFriends.map((friend) => (
-                  <UserCard key={friend.id} user={friend} showFollowButton={false} />
+                  <UserCard key={friend.id} user={{...friend, isFollowing: true}} showFollowButton={false} />
                 ))}
               </div>
             )}
@@ -293,11 +382,55 @@ export const Friends: React.FC = () => {
 
         {!loading && activeTab === 'explore' && (
           <div className="bg-white rounded-2xl shadow-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Discover Users</h3>
-            {allUsers.length === 0 ? (
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">Discover Users</h3>
+              {isInitialized && (
+                <button
+                  onClick={loadData}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Refresh
+                </button>
+              )}
+            </div>
+            {allUsers.length === 0 && !isInitialized ? (
               <div className="text-center py-8">
                 <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No users found</p>
+                <p className="text-gray-500 mb-4">Click the button below to load users from your database</p>
+                <button
+                  onClick={loadData}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Load Users from Database
+                </button>
+              </div>
+            ) : allUsers.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">No users found in your database</p>
+                <div className="space-y-2">
+                  <button
+                    onClick={loadData}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors mr-2"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setLoading(true);
+                      const success = await createSampleUsers();
+                      if (success) {
+                        await loadData();
+                      } else {
+                        setError('Failed to create sample users. Check console for details.');
+                      }
+                      setLoading(false);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                  >
+                    Add Sample Users
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
