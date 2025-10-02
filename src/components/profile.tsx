@@ -67,26 +67,7 @@ const Profile: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800">Tier Progress</h3>
-            <p className="text-sm text-gray-500">
-              {user.xp} / {nextThreshold} XP to next tier
-            </p>
-          </div>
-          <TrendingUp className="w-6 h-6 text-blue-600" />
-        </div>
 
-        <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-          <div
-            className={`h-full bg-gradient-to-r ${getTierColor(user.tier)} transition-all duration-500 rounded-full`}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        <p className="text-right text-sm text-gray-600 mt-2">{Math.round(progress)}% Complete</p>
-      </div>
 
       <div className="bg-white rounded-2xl shadow-lg p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-6">Weekly Activity</h3>

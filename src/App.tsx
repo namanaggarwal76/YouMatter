@@ -7,6 +7,7 @@ import { Groups } from './components/Groups';
 import { Leaderboard } from './components/Leaderboard';
 import { Challenges } from './components/Challenges';
 import { Header } from './components/Header';
+import Shop from './components/Shop';
 import { BottomNav } from './components/BottomNav';
 import { NotificationBanner } from './components/NotificationBanner';
 import { Award } from 'lucide-react';
@@ -61,6 +62,8 @@ function AppContent() {
                     return <Leaderboard />;
                   case 'challenges':
                     return <Challenges />;
+                  case 'shop':
+                    return <Shop coins={user?.coins ?? 0} />;
                   default:
                     return <Dashboard />;
                 }
@@ -69,9 +72,10 @@ function AppContent() {
           } />
         </Routes>
       </div>
-      {/* Only show BottomNav on dashboard route */}
+      {/* Show BottomNav on dashboard and profile routes */}
       <Routes>
         <Route path="/" element={<BottomNav activeTab={activeTab} onTabChange={setActiveTab} />} />
+        <Route path="/profile" element={<BottomNav activeTab={activeTab} onTabChange={setActiveTab} />} />
       </Routes>
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
