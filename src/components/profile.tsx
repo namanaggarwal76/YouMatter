@@ -1,11 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Coins, Award, TrendingUp, Trophy, Flame } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useSupabase } from '../context/SupabaseContext';
 import { calculateProgress, getNextTierThreshold } from '../utils/gamification';
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user } = useSupabase();
   const navigate = useNavigate();
 
   if (!user) return null;
@@ -30,12 +30,6 @@ const Profile: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <button
-        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        onClick={() => navigate('/')}
-      >
-        ← Back to Home
-      </button>
       <div>
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome back, {user.name}!</h1>
         <p className="text-gray-600">Here's your wellness progress overview</p>
@@ -54,10 +48,10 @@ const Profile: React.FC = () => {
           <p className="text-3xl font-bold">{user.xp}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-6 text-white">
-          <Flame className="w-8 h-8 mb-3 opacity-90" />
-          <p className="text-sm opacity-90 mb-1">Streak</p>
-          <p className="text-3xl font-bold">{user.streakCount} days</p>
+                <div className="bg-gradient-to-r from-orange-400 to-red-500 rounded-2xl p-8 text-white text-center">
+          <Flame className="w-10 h-10 mx-auto mb-3 opacity-90" />
+          <p className="text-lg opacity-90 mb-1">Daily Streak</p>
+          <p className="text-3xl font-bold">7 days</p>
         </div>
 
         <div className={`bg-gradient-to-br ${getTierColor(user.tier)} rounded-2xl p-6 text-white`}>
@@ -96,25 +90,7 @@ const Profile: React.FC = () => {
 
       <div className="bg-white rounded-2xl shadow-lg p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Badges Unlocked</h3>
-
-        {user.badges.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No badges earned yet. Keep going!</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {user.badges.map((badge) => (
-              <div
-                key={badge.id}
-                className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border-2 border-gray-200 hover:border-blue-400 transition-all"
-              >
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mb-3">
-                  <Award className="w-6 h-6 text-white" />
-                </div>
-                <h4 className="font-semibold text-gray-800 text-sm mb-1">{badge.name}</h4>
-                <p className="text-xs text-gray-600">{badge.description}</p>
-              </div>
-            ))}
-          </div>
-        )}
+        <p className="text-gray-500 text-center py-8">No badges earned yet. Keep going!</p>
       </div>
     </div>
   );
