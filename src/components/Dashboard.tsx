@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { HeartPulse, Droplets, Footprints, Bed } from 'lucide-react';
+import { HeartPulse, Droplets, Footprints, Bed, Plus, Check } from 'lucide-react';
 import { useSupabase } from '../context/SupabaseContext';
 import { supabase } from '../utils/supabaseClient';
 import { VitalChart } from './VitalChart';
@@ -10,6 +10,8 @@ export function Dashboard() {
   const [loadingVitals, setLoadingVitals] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedVital, setSelectedVital] = useState<'heartrate' | 'water' | 'steps' | 'sleep' | null>(null);
+  const [addingWater, setAddingWater] = useState(false);
+  const [showWaterButtons, setShowWaterButtons] = useState(false);
 
   console.log('[Dashboard] User:', user);
   console.log('[Dashboard] Component rendered');
@@ -102,6 +104,53 @@ export function Dashboard() {
     fetchVitals();
   }, [user]);
 
+  // Function to add water intake
+  const addWaterIntake = async (liters: number) => {
+    if (!user) return;
+    
+    setAddingWater(true);
+    try {
+      console.log(`[Dashboard] Adding ${liters}L of water for user:`, user.id);
+      
+      // Get current water intake for today
+      const currentWater = vitals.water || 0;
+      const newWaterAmount = currentWater + liters;
+      
+      console.log(`[Dashboard] Current water: ${currentWater}L, Adding: ${liters}L, New total: ${newWaterAmount}L`);
+      
+      // Insert new water intake record with the accumulated amount
+      const { error: insertError } = await supabase
+        .from('user_water')
+        .insert({
+          user_id: user.id,
+          liters: newWaterAmount,
+          recorded_at: new Date().toISOString()
+        });
+
+      if (insertError) {
+        console.error('[Dashboard] Error inserting water data:', insertError);
+        setError('Failed to add water intake');
+        return;
+      }
+
+      console.log('[Dashboard] Water intake added successfully');
+      
+      // Update the vitals state immediately with the new total
+      setVitals(prev => ({
+        ...prev,
+        water: newWaterAmount
+      }));
+
+      setShowWaterButtons(false);
+      setError(null);
+    } catch (err) {
+      console.error('[Dashboard] Error adding water intake:', err);
+      setError('Failed to add water intake');
+    } finally {
+      setAddingWater(false);
+    }
+  };
+
   if (!user) {
     console.log('[Dashboard] No user, returning null');
     return <div className="text-center p-8">No user found. Please log in.</div>;
@@ -132,17 +181,60 @@ export function Dashboard() {
           <p className="text-xs opacity-75 mt-2">Click to view charts</p>
         </div>
         {/* Water */}
-        <div 
-          onClick={() => setSelectedVital('water')}
-          className="bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl p-8 text-white cursor-pointer transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105"
-        >
-          <Droplets className="w-10 h-10 mb-3 opacity-90" />
-          <p className="text-lg opacity-90 mb-1">Water</p>
-          <p className="text-4xl font-bold">
-            {loadingVitals ? '...' : vitals.water !== undefined ? vitals.water : 'No data'}{' '}
-            <span className="text-base font-normal">L</span>
-          </p>
-          <p className="text-xs opacity-75 mt-2">Click to view charts</p>
+        <div className="bg-gradient-to-br from-blue-400 to-cyan-500 rounded-2xl p-8 text-white transition-all duration-300 shadow-lg hover:shadow-xl">
+          <div onClick={() => setSelectedVital('water')} className="cursor-pointer">
+            <Droplets className="w-10 h-10 mb-3 opacity-90" />
+            <p className="text-lg opacity-90 mb-1">Water</p>
+            <p className="text-4xl font-bold">
+              {loadingVitals ? '...' : vitals.water !== undefined ? vitals.water : 'No data'}{' '}
+              <span className="text-base font-normal">L</span>
+            </p>
+            <p className="text-xs opacity-75 mt-2">Click to view charts</p>
+          </div>
+          
+          {/* Water Intake Buttons */}
+          <div className="mt-4 pt-4 border-t border-blue-300/30">
+            {!showWaterButtons ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowWaterButtons(true);
+                }}
+                className="w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg py-2 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Water Intake
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm font-medium mb-2">How much water did you drink?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[0.5, 1, 1.5, 2].map((amount) => (
+                    <button
+                      key={amount}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addWaterIntake(amount);
+                      }}
+                      disabled={addingWater}
+                      className="bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg py-2 px-3 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      +{amount}L
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowWaterButtons(false);
+                  }}
+                  className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg py-2 px-4 text-xs opacity-75 hover:opacity-100 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         {/* Steps */}
         <div 

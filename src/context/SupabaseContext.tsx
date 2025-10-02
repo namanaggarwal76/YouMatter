@@ -18,44 +18,27 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        console.log('[Supabase] Always starting fresh - no session persistence');
-        // Clear any existing session
-        await supabase.auth.signOut();
-        setUser(null);
-      } catch (error) {
-        console.error('[Supabase] Error clearing session:', error);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // Clear data on page unload (refresh, close tab, navigate away)
-    const handleBeforeUnload = () => {
-      supabase.auth.signOut();
-      localStorage.clear();
-      sessionStorage.clear();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setLoading(true);
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         await fetchUserProfile(session.user.id);
       } else {
         setUser(null);
       }
       setLoading(false);
+    };
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setUser(null);
+      }
     });
-    
+
     return () => {
       listener.subscription.unsubscribe();
-      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
@@ -113,7 +96,6 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const fetchUserProfile = async (id: string) => {
-    console.log('[Supabase] Fetching user profile for id:', id);
     const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
     
     console.log('[Supabase] Query result:', { data, error });
@@ -129,12 +111,10 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Update daily login and streak (this will call setUser internally)
       await updateDailyLogin(userData);
     } else {
-      console.warn('[Supabase] User row not found, creating default user row.');
-      // Fetch email and name from auth user
+      // fallback: create profile row
       const { data: authData } = await supabase.auth.getUser();
       const email = authData?.user?.email || '';
       const name = authData?.user?.user_metadata?.name || 'New User';
-      // Insert default user row
       const defaultUser = {
         id,
         email,
@@ -145,33 +125,26 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         daily_login_timestamp: new Date().toISOString(),
         streak: 0, // Default value for streak
       };
-      // Try to insert with streak first, if it fails, try without streak
-      let { error: insertError } = await supabase.from('users').insert(defaultUser);
       
-      if (insertError && insertError.message.includes('streak')) {
-        console.log('[Supabase] Streak column not found, trying without streak...');
-        const userWithoutStreak = {
-          id,
-          email,
-          name,
-          coins: 0,
-          xp: 0,
-          tier: 'Bronze' as const,
-          daily_login_timestamp: new Date().toISOString(),
-        };
-        const { error: insertError2 } = await supabase.from('users').insert(userWithoutStreak);
-        if (insertError2) {
-          console.error('[Supabase] Failed to create user row:', insertError2.message);
-          setUser(null);
-        } else {
-          console.log('[Supabase] Created new user without streak:', userWithoutStreak);
-          setUser({ ...defaultUser, streak: 0 }); // Add streak as 0 in the app state
-        }
-      } else if (insertError) {
-        console.error('[Supabase] Failed to create user row:', insertError.message);
+      console.log('[Supabase] Attempting to insert user:', defaultUser);
+      
+      const { data: insertData, error: insertError } = await supabase
+        .from('users')
+        .insert(defaultUser)
+        .select()
+        .single();
+      
+      if (insertError) {
+        console.error('[Supabase] Failed to create user profile:', insertError);
+        console.error('[Supabase] Error details:', {
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code
+        });
         setUser(null);
       } else {
-        console.log('[Supabase] Created new user:', defaultUser);
+        console.log('[Supabase] Successfully created user profile:', insertData);
         setUser(defaultUser);
       }
     }
@@ -241,9 +214,6 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    // Clear any local storage
-    localStorage.clear();
-    sessionStorage.clear();
   };
 
   return (
@@ -257,4 +227,4 @@ export const useSupabase = () => {
   const context = useContext(SupabaseContext);
   if (!context) throw new Error('useSupabase must be used within SupabaseProvider');
   return context;
-}
+};
