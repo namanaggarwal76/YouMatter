@@ -331,40 +331,52 @@ interface ChallengeCardProps {
 }
 
 const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onStart, isActive, isAiGenerated }) => (
-    <div className={`p-4 rounded-xl shadow-lg transition-all ${isActive ? 'bg-indigo-100/70 border-2 border-indigo-500' : 'bg-white hover:shadow-xl'}`}>
-        <div className="flex items-start justify-between mb-3">
-            {getChallengeIcon(challenge.type)}
-            {isAiGenerated && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500 text-white">AI Goal</span>
-            )}
-        </div>
-        <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-1">{challenge.name}</h3>
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{challenge.description}</p>
-        
-        <div className="flex items-center justify-between text-xs font-semibold mb-3">
-            <span className="flex items-center text-amber-600">
-                <Coins className="w-3 h-3 mr-1" /> +{challenge.rewardCoins}
-            </span>
-            <span className="flex items-center text-blue-600">
-                <Award className="w-3 h-3 mr-1" /> +{challenge.rewardXp} XP
-            </span>
-        </div>
+    <div className={`p-6 rounded-xl shadow-lg transition-all w-full ${isActive ? 'bg-indigo-100/70 border-2 border-indigo-500' : 'bg-white hover:shadow-xl'}`}>
+        <div className="flex items-center justify-between w-full">
+            {/* Left section: Icon, title, description */}
+            <div className="flex items-start flex-grow">
+                <div className="flex-shrink-0 mr-4">
+                    {getChallengeIcon(challenge.type)}
+                </div>
+                <div className="flex-grow">
+                    <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-lg font-bold text-gray-900">{challenge.name}</h3>
+                        {isAiGenerated && (
+                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500 text-white">AI Goal</span>
+                        )}
+                    </div>
+                    <p className="text-gray-600 text-sm mb-3">{challenge.description}</p>
+                    
+                    <div className="flex items-center gap-4 text-xs font-semibold">
+                        <span className="flex items-center text-amber-600">
+                            <Coins className="w-3 h-3 mr-1" /> +{challenge.rewardCoins}
+                        </span>
+                        <span className="flex items-center text-blue-600">
+                            <Award className="w-3 h-3 mr-1" /> +{challenge.rewardXp} XP
+                        </span>
+                    </div>
+                </div>
+            </div>
 
-        {isActive ? (
-            <button
-                disabled
-                className="w-full bg-gray-400 text-white py-2 rounded-lg text-sm font-semibold cursor-not-allowed"
-            >
-                Goal Active
-            </button>
-        ) : (
-            <button
-                onClick={() => onStart(challenge.id)}
-                className="w-full bg-green-500 text-white py-2 rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors"
-            >
-                Accept Goal
-            </button>
-        )}
+            {/* Right section: Action button */}
+            <div className="flex-shrink-0 ml-6">
+                {isActive ? (
+                    <button
+                        disabled
+                        className="px-6 py-2 bg-gray-400 text-white rounded-lg text-sm font-semibold cursor-not-allowed whitespace-nowrap"
+                    >
+                        Goal Active
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => onStart(challenge.id)}
+                        className="px-6 py-2 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors whitespace-nowrap"
+                    >
+                        Accept Goal
+                    </button>
+                )}
+            </div>
+        </div>
     </div>
 );
 
@@ -478,7 +490,7 @@ const ChallengesList: React.FC<ChallengesListProps> = ({
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="flex flex-col gap-4">
                     {Array.isArray(aiChallenges) && aiChallenges.map((challenge) => {
                         const isAiGenerated = true;
                         return (
@@ -500,7 +512,7 @@ const ChallengesList: React.FC<ChallengesListProps> = ({
             {/* Standard Challenges Section */}
             <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Standard & Repeatable Goals</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="flex flex-col gap-4">
                     {Array.isArray(staticChallenges) && staticChallenges.map((challenge) => {
                         const isAiGenerated = false;
                         return (
