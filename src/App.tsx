@@ -72,7 +72,10 @@ function AppContent() {
           } />
         </Routes>
       </div>
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Only show BottomNav on dashboard route */}
+      <Routes>
+        <Route path="/" element={<BottomNav activeTab={activeTab} onTabChange={setActiveTab} />} />
+      </Routes>
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center animate-scale-in">

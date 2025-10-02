@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Coins, Award, TrendingUp, Trophy, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { calculateProgress, getNextTierThreshold } from '../utils/gamification';
 
 const Profile: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -28,6 +30,12 @@ const Profile: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <button
+        className="mb-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        onClick={() => navigate('/')}
+      >
+        ← Back to Home
+      </button>
       <div>
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome back, {user.name}!</h1>
         <p className="text-gray-600">Here's your wellness progress overview</p>
