@@ -19,17 +19,12 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     const initAuth = async () => {
       try {
-        console.log('[Supabase] Checking for existing session...');
-        const { data } = await supabase.auth.getSession();
-        if (data.session) {
-          console.log('[Supabase] Session found, fetching user profile...');
-          await fetchUserProfile(data.session.user.id);
-        } else {
-          console.log('[Supabase] No session found, user will need to login');
-          setUser(null);
-        }
+        console.log('[Supabase] Always starting fresh - no session persistence');
+        // Clear any existing session
+        await supabase.auth.signOut();
+        setUser(null);
       } catch (error) {
-        console.error('[Supabase] Error checking session:', error);
+        console.error('[Supabase] Error clearing session:', error);
         setUser(null);
       } finally {
         setLoading(false);
@@ -37,6 +32,15 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     initAuth();
+
+    // Clear data on page unload (refresh, close tab, navigate away)
+    const handleBeforeUnload = () => {
+      supabase.auth.signOut();
+      localStorage.clear();
+      sessionStorage.clear();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setLoading(true);
@@ -47,8 +51,10 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
       setLoading(false);
     });
+    
     return () => {
       listener.subscription.unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
@@ -106,6 +112,9 @@ export const SupabaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    // Clear any local storage
+    localStorage.clear();
+    sessionStorage.clear();
   };
 
   return (
