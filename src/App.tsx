@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { SupabaseProvider, useSupabase } from './context/SupabaseContext';
 import { LoginWithNavigation } from './components/Login';
 import { Dashboard } from './components/Dashboard';
-import { Chatbot } from './components/Chatbot';
+import  Chatbot  from './components/Chatbot';
 import Challenges  from './components/Challenges';
 import { Socials } from './components/Socials';
 import { FriendProfile } from './components/FriendProfile';
