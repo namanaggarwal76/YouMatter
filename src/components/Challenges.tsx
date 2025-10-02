@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo, createContext, useContext } from 'react';
 import { Target, Clock, Coins, Award, CheckCircle, TrendingUp, Zap, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { MoodPrompt } from './MoodPrompt';
+import { fetchLatestHealthData, storeMoodResponse, type HealthData } from '../utils/healthData';
 
 // --- API CONFIGURATION AND UTILITIES ---
 
-// Hardcoded data values for the API payload
-const HARDCODED_DATA = {
-    daily_steps: 18000, // Example steps
-    heart_rate_bpm: 75, // Example heart rate
-    water_intake_oz: 20, // Example water intake
-    daily_journal_entry: "I AM FEELING very very bad i have broken my leg i am lonely i feel sucidal please help me " // The required hardcoded text
+// Dynamic health data - will be populated from database and user input
+let DYNAMIC_HEALTH_DATA: HealthData = {
+    daily_steps: 18000, // Will be fetched from database
+    heart_rate_bpm: 75, // Will be fetched from database
+    water_intake_oz: 20, // Will be fetched from database
+    daily_journal_entry: "I'm feeling good today and ready to tackle my wellness goals!" // Will be set from user mood input
 };
 
 // Placeholder for the Gemini API endpoint for text generation
@@ -80,6 +82,9 @@ interface ChallengesContextType {
     startChallenge: (id: string, isAiGenerated: boolean) => void;
     completeChallenge: (id: string) => void;
     generateAiChallenges: () => void;
+    showMoodPrompt: boolean;
+    handleMoodSubmit: (mood: string) => void;
+    handleMoodClose: () => void;
 }
 
 // --- MOCK DATA FOR SINGLE-FILE EXECUTION ---
@@ -135,9 +140,65 @@ const ChallengesProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [aiChallenges, setAiChallenges] = useState<AiChallenge[]>([]);
     const [loadingAi, setLoadingAi] = useState(false);
     const [errorAi, setErrorAi] = useState<string | null>(null);
+    const [showMoodPrompt, setShowMoodPrompt] = useState(false);
+    const [healthDataLoaded, setHealthDataLoaded] = useState(false);
     
     // Static challenges are constant in this mock setup
     const staticChallenges = useMemo(() => CHALLENGES_MOCK, []);
+
+    // Load health data and check for mood prompt on mount
+    useEffect(() => {
+        const initializeHealthData = async () => {
+            if (!userId) return;
+
+            // Show mood prompt every time user logs in (every component mount)
+            setShowMoodPrompt(true);
+
+            // Fetch latest health data from database
+            try {
+                const healthData = await fetchLatestHealthData(userId);
+                
+                // Update the dynamic health data with database values
+                DYNAMIC_HEALTH_DATA = {
+                    ...healthData,
+                    // Use default mood until user provides fresh input
+                    daily_journal_entry: healthData.daily_journal_entry
+                };
+
+                setHealthDataLoaded(true);
+                console.log('[Challenges] Health data loaded:', DYNAMIC_HEALTH_DATA);
+            } catch (error) {
+                console.error('[Challenges] Error loading health data:', error);
+                setHealthDataLoaded(true); // Still mark as loaded to prevent infinite loading
+            }
+        };
+
+        initializeHealthData();
+    }, [userId]);
+
+    // Handle mood prompt submission
+    const handleMoodSubmit = useCallback((mood: string) => {
+        if (!userId) return;
+
+        // Store the mood response (with timestamp for this session)
+        storeMoodResponse(userId, mood);
+        
+        // Update the dynamic health data with user's mood
+        DYNAMIC_HEALTH_DATA = {
+            ...DYNAMIC_HEALTH_DATA,
+            daily_journal_entry: mood
+        };
+
+        setShowMoodPrompt(false);
+        console.log('[Challenges] Mood updated:', mood);
+    }, [userId]);
+
+    // Handle mood prompt skip/close
+    const handleMoodClose = useCallback(() => {
+        if (!userId) return;
+
+        setShowMoodPrompt(false);
+    }, [userId]);
 
     // Helper to find a challenge by ID
     const findChallenge = useCallback((id: string, isAi: boolean): StaticChallenge | AiChallenge | undefined => {
@@ -192,10 +253,10 @@ You are an expert, encouraging, and analytical Wellness Coach. Your task is to a
 3.  **Strictly adhere** to the required JSON schema for the output. Do not include any conversational text, explanations, or markdown outside of the JSON array.
 
 Based on the following current user data:
-Steps: ${HARDCODED_DATA.daily_steps}
-Heart Rate: ${HARDCODED_DATA.heart_rate_bpm} BPM
-Water Intake: ${HARDCODED_DATA.water_intake_oz} oz
-Journal Mood: "${HARDCODED_DATA.daily_journal_entry}"
+Steps: ${DYNAMIC_HEALTH_DATA.daily_steps}
+Heart Rate: ${DYNAMIC_HEALTH_DATA.heart_rate_bpm} BPM
+Water Intake: ${DYNAMIC_HEALTH_DATA.water_intake_oz} oz
+Journal Mood: "${DYNAMIC_HEALTH_DATA.daily_journal_entry}"
 
 **REQUIRED JSON SCHEMA:**
 [
@@ -300,7 +361,10 @@ Journal Mood: "${HARDCODED_DATA.daily_journal_entry}"
         startChallenge,
         completeChallenge,
         generateAiChallenges,
-    }), [activeChallenges, staticChallenges, aiChallenges, loadingAi, errorAi, startChallenge, completeChallenge, generateAiChallenges]);
+        showMoodPrompt,
+        handleMoodSubmit,
+        handleMoodClose,
+    }), [activeChallenges, staticChallenges, aiChallenges, loadingAi, errorAi, startChallenge, completeChallenge, generateAiChallenges, showMoodPrompt, handleMoodSubmit, handleMoodClose]);
 
     return (
         <ChallengesContext.Provider value={contextValue}>
@@ -550,6 +614,9 @@ const ChallengesInner = () => {
         errorAi,
         startChallenge, 
         generateAiChallenges,
+        showMoodPrompt,
+        handleMoodSubmit,
+        handleMoodClose,
     } = useChallenges();
 
     const handleStartChallenge = useCallback((id: string, isAiGenerated: boolean) => {
@@ -579,6 +646,14 @@ const ChallengesInner = () => {
                     handleGenerateAiChallenges={generateAiChallenges}
                 />
             </div>
+
+            {/* Mood Prompt Modal */}
+            <MoodPrompt
+                isOpen={showMoodPrompt}
+                onClose={handleMoodClose}
+                onSubmit={handleMoodSubmit}
+                userName="User" // We could get this from auth context if needed
+            />
         </div>
     );
 };

@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Award, Coins, Flame } from 'lucide-react';
 import { useSupabase } from '../context/SupabaseContext';
 import { supabase } from '../utils/supabaseClient';
-import { shouldShowDailyReward } from '../utils/gamification';
-import { getUser } from '../utils/storage';
+import { shouldShowDailyReward, getStreakBonus } from '../utils/streakUtils';
 import { useNavigate } from 'react-router-dom';
 
 interface LoginProps {
@@ -36,8 +35,8 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   // Prevent infinite loop: only call onLoginSuccess once after login
   useEffect(() => {
     if (user) {
-      const existingUser = getUser();
-      if (existingUser && shouldShowDailyReward(existingUser.lastLoginDate)) {
+      // Check if we should show daily reward based on the user's last login
+      if (shouldShowDailyReward(user.daily_login_timestamp)) {
         setShowReward(true);
       } else {
         onLoginSuccess();
@@ -143,8 +142,18 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 <Flame className="w-8 h-8 text-orange-600" />
                 <span className="text-lg font-semibold text-gray-800">Current Streak</span>
               </div>
-              <span className="text-2xl font-bold text-orange-600">Streak feature coming soon</span>
+              <span className="text-2xl font-bold text-orange-600">{user.streak} days 🔥</span>
             </div>
+
+            {getStreakBonus(user.streak) > 0 && (
+              <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-2xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Award className="w-8 h-8 text-purple-600" />
+                  <span className="text-lg font-semibold text-gray-800">Streak Bonus!</span>
+                </div>
+                <span className="text-2xl font-bold text-purple-600">+{getStreakBonus(user.streak)} coins</span>
+              </div>
+            )}
           </div>
 
           <button

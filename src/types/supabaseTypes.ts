@@ -6,7 +6,8 @@ export type User = {
   coins: number;
   xp: number;
   tier: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
-  daily_login_timestamp: number;
+  daily_login_timestamp: string; // Changed to string for timestamptz format
+  streak: number;
 };
 
 export type Badge = {
