@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Users, Target, Trophy, MessageCircle } from 'lucide-react';
+import { Home, Users, Target, Trophy, MessageCircle, UserPlus, ShoppingBag } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface BottomNavProps {
@@ -10,11 +10,12 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
   const navItems = [
     { id: 'dashboard', icon: Home, label: 'Home' },
+    { id: 'friends', icon: UserPlus, label: 'Friends' },
     { id: 'groups', icon: Users, label: 'Groups' },
     { id: 'challenges', icon: Target, label: 'Challenges' },
     { id: 'leaderboard', icon: Trophy, label: 'Ranks' },
     { id: 'chat', icon: MessageCircle, label: 'Chat' },
-    { id: 'shop', icon: Trophy, label: 'Shop' }, // Reusing Trophy icon, can be changed
+    { id: 'shop', icon: ShoppingBag, label: 'Shop' },
   ];
   const location = useLocation();
   const navigate = useNavigate();
