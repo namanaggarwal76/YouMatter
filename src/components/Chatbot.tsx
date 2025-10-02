@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User } from 'lucide-react';
 import { ChatMessage } from '../types';
-import { CHATBOT_RESPONSES } from '../utils/mockData';
 import { useAuth } from '../context/AuthContext';
 
 export const Chatbot: React.FC = () => {
@@ -25,44 +24,42 @@ export const Chatbot: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const getBotResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
+  const getBotResponse = async (userMessage: string) => {
+  const res = await fetch("http://localhost:3001/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: userMessage }),
+  });
+  const data = await res.json();
+  return data.reply;
+};
 
-    for (const [key, responses] of Object.entries(CHATBOT_RESPONSES)) {
-      if (key !== 'default' && lowerMessage.includes(key)) {
-        return responses[Math.floor(Math.random() * responses.length)];
-      }
-    }
+const handleSend = async () => {
+  if (!input.trim()) return;
 
-    return CHATBOT_RESPONSES.default[Math.floor(Math.random() * CHATBOT_RESPONSES.default.length)];
+  const userMessage: ChatMessage = {
+    id: Date.now().toString(),
+    text: input,
+    sender: "user",
+    timestamp: new Date().toISOString(),
   };
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  setMessages(prev => [...prev, userMessage]);
+  setInput("");
 
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      text: input,
-      sender: 'user',
-      timestamp: new Date().toISOString(),
-    };
+  addCoins(2);
+  addXP(1);
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-
-    addCoins(2);
-    addXP(1);
-
-    setTimeout(() => {
-      const botMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        text: getBotResponse(input),
-        sender: 'bot',
-        timestamp: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, botMessage]);
-    }, 500);
+  const botText = await getBotResponse(input);
+  const botMessage: ChatMessage = {
+    id: (Date.now() + 1).toString(),
+    text: botText,
+    sender: "bot",
+    timestamp: new Date().toISOString(),
   };
+  setMessages(prev => [...prev, botMessage]);
+};
+
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -137,9 +134,6 @@ export const Chatbot: React.FC = () => {
             <Send className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-2 text-center">
-          Earn +2 coins and +1 XP for each message
-        </p>
       </div>
     </div>
   );

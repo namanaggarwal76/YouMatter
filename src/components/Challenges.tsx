@@ -42,7 +42,7 @@ export const Challenges: React.FC = () => {
     }
   };
 
-  const getChallengeIcon = (type: string) => {
+  const getChallengeIcon = (_type: string) => {
     return Target;
   };
 

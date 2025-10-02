@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/Login';
 import { Dashboard } from './components/Dashboard';
 import { Chatbot } from './components/Chatbot';
 import { Groups } from './components/Groups';
 import { Leaderboard } from './components/Leaderboard';
-import { Challenges } from './components/Challenges';
 import { Wallet } from './components/Wallet';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
 import { NotificationBanner } from './components/NotificationBanner';
 import { Award } from 'lucide-react';
+import { DailyChallenge } from './components/DailyChallenge';
 
 function AppContent() {
   const { user, addCoins } = useAuth();
@@ -18,9 +18,14 @@ function AppContent() {
   const [showLogin, setShowLogin] = useState(true);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  
+  // New state to store challenges from backend
+  const [dailyChallenges, setDailyChallenges] = useState<string[]>([]);
+  const [chatReply, setChatReply] = useState<string | null>(null);
 
   const handleLoginSuccess = () => {
     setShowLogin(false);
+    fetchDailyChallenges(); // fetch challenges immediately after login
   };
 
   const handleInviteFriend = () => {
@@ -33,6 +38,35 @@ function AppContent() {
     setShowShareModal(true);
     setTimeout(() => setShowShareModal(false), 3000);
   };
+
+  // Fetch daily challenges from backend
+  const fetchDailyChallenges = async () => {
+    try {
+      const data = await (await import('./utils/api')).generateChallenges('generate daily challenges');
+      // Backend may return 'challenges' as string or array
+      let challengesArray: string[] = [];
+      if (Array.isArray(data.challenges)) challengesArray = data.challenges;
+      else if (typeof data.challenges === 'string') challengesArray = data.challenges.split('\n').filter((c: string) => c.trim() !== '');
+      else if (typeof data === 'string') challengesArray = data.split('\n').filter((c: string) => c.trim() !== '');
+      setDailyChallenges(challengesArray);
+    } catch (err) {
+      console.error('Failed to fetch challenges:', err);
+    }
+  };
+
+  // In App.tsx
+
+  const sendChatMessage = async (message: string) => {
+    try {
+      const api = await import('./utils/api');
+      const data = await api.chat(message);
+      // Ensure we use 'reply' from your backend, as your server.ts returns { reply: ... }
+      setChatReply(data.reply || 'No reply text received.'); 
+    } catch (err) {
+      console.error('Chat failed:', err);
+      setChatReply('Chat failed');
+    }
+  };
 
   if (!user || showLogin) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
@@ -49,7 +83,7 @@ function AppContent() {
       case 'leaderboard':
         return <Leaderboard />;
       case 'challenges':
-        return <Challenges />;
+        return <DailyChallenge challenges={dailyChallenges} />; // Pass fetched challenges
       case 'wallet':
         return <Wallet />;
       default:
@@ -64,6 +98,7 @@ function AppContent() {
       <div className="max-w-lg mx-auto px-4 py-6 pb-24">
         <NotificationBanner />
         {renderContent()}
+        
       </div>
 
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
