@@ -15,7 +15,7 @@ let DYNAMIC_HEALTH_DATA: HealthData = {
 
 // Placeholder for the Gemini API endpoint for text generation
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=';
-const apiKey = "AIzaSyB7ur9J55WJGpNz1Ail-oiqlbYZ7-M9m_o"; // Leave as empty string for Canvas environment
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ""; // Leave as empty string for Canvas environment
 
 /**
  * Utility function to perform fetch with exponential backoff for robustness.

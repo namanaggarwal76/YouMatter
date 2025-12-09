@@ -13,7 +13,6 @@ export interface HealthData {
  * @returns Health data object with latest values
  */
 export async function fetchLatestHealthData(userId: string): Promise<HealthData> {
-  console.log(`[HealthData] Fetching latest health data for user: ${userId}`);
   
   try {
     // Fetch latest steps
@@ -40,13 +39,6 @@ export async function fetchLatestHealthData(userId: string): Promise<HealthData>
       .order('recorded_at', { ascending: false })
       .limit(1);
 
-    console.log('[HealthData] Raw data fetched:', {
-      steps: stepsData,
-      heartrate: heartrateData,
-      water: waterData,
-      errors: { stepsError, heartrateError, waterError }
-    });
-
     // Extract the latest values or use defaults
     const steps = (!stepsError && stepsData && stepsData.length > 0) 
       ? Number(stepsData[0].steps) 
@@ -69,7 +61,6 @@ export async function fetchLatestHealthData(userId: string): Promise<HealthData>
       daily_journal_entry: "I'm feeling good today and ready to tackle my wellness goals!" // Default mood - will be replaced with user input
     };
 
-    console.log('[HealthData] Processed health data:', healthData);
     return healthData;
 
   } catch (error) {

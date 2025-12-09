@@ -48,7 +48,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    console.log('[Login] handleLogin called with:', { email, password });
+    
     try {
       // Check if user exists in Supabase
       const { data: userData, error: userError } = await supabase
@@ -56,14 +56,14 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         .select('id')
         .eq('email', email)
         .single();
-      console.log('[Login] userData:', userData, 'userError:', userError);
+      
       if (userError || !userData) {
         setError('User does not exist. Please create an account.');
         setLoading(false);
         return;
       }
       const result = await signIn(email, password);
-      console.log('[Login] Supabase signIn result:', result);
+      
       if (result.error) {
         setError('Login failed: ' + result.error.message);
       } else if (!result.data.session) {

@@ -13,23 +13,17 @@ export function Dashboard() {
   const [addingWater, setAddingWater] = useState(false);
   const [showWaterButtons, setShowWaterButtons] = useState(false);
 
-  console.log('[Dashboard] User:', user);
-  console.log('[Dashboard] Component rendered');
-
   useEffect(() => {
     const fetchVitals = async () => {
       if (!user) {
-        console.log('[Dashboard] No user found, skipping vitals fetch');
         return;
       }
       
-      console.log('[Dashboard] Fetching vitals for user ID:', user.id);
       setLoadingVitals(true);
       setError(null);
       
       try {
         // Fetch latest heartrate
-        console.log('[Dashboard] Fetching heartrate...');
         const { data: heartrateData, error: heartrateError } = await supabase
           .from('user_heartrate')
           .select('heartbeat, recorded_at')
@@ -37,10 +31,7 @@ export function Dashboard() {
           .order('recorded_at', { ascending: false })
           .limit(1);
         
-        console.log('[Dashboard] Heartrate data:', heartrateData, 'error:', heartrateError);
-
         // Fetch latest sleep
-        console.log('[Dashboard] Fetching sleep...');
         const { data: sleepData, error: sleepError } = await supabase
           .from('user_sleep')
           .select('hours, recorded_at')
@@ -48,10 +39,7 @@ export function Dashboard() {
           .order('recorded_at', { ascending: false })
           .limit(1);
         
-        console.log('[Dashboard] Sleep data:', sleepData, 'error:', sleepError);
-
         // Fetch latest steps
-        console.log('[Dashboard] Fetching steps...');
         const { data: stepsData, error: stepsError } = await supabase
           .from('user_steps')
           .select('steps, recorded_at')
@@ -59,10 +47,7 @@ export function Dashboard() {
           .order('recorded_at', { ascending: false })
           .limit(1);
         
-        console.log('[Dashboard] Steps data:', stepsData, 'error:', stepsError);
-
         // Fetch latest water
-        console.log('[Dashboard] Fetching water...');
         const { data: waterData, error: waterError } = await supabase
           .from('user_water')
           .select('liters, recorded_at')
@@ -70,8 +55,6 @@ export function Dashboard() {
           .order('recorded_at', { ascending: false })
           .limit(1);
         
-        console.log('[Dashboard] Water data:', waterData, 'error:', waterError);
-
         const newVitals = {
           heartrate:
             heartrateError || !heartrateData || heartrateData.length === 0

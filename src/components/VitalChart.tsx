@@ -77,7 +77,6 @@ export function VitalChart({ isOpen, onClose, vitalType, userId }: VitalChartPro
       
       // If no data found with timestamp filtering, try a simpler approach
       if (data.length === 0) {
-        console.log('No data found with timestamp filtering, trying simpler approach...');
         await fetchDailyDataSimple();
       }
     } catch (error) {
@@ -125,8 +124,6 @@ export function VitalChart({ isOpen, onClose, vitalType, userId }: VitalChartPro
         return;
       }
 
-      console.log(`Simple fetch got ${data.length} records`);
-
       // Filter for today's data
       const today = new Date();
       const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -148,8 +145,6 @@ export function VitalChart({ isOpen, onClose, vitalType, userId }: VitalChartPro
 
         return recordDate >= startOfDay && recordDate < endOfDay;
       });
-
-      console.log(`Found ${todayData.length} records for today`);
 
       if (todayData.length > 0) {
         // Create simple chart data - just show the values we have
@@ -177,7 +172,6 @@ export function VitalChart({ isOpen, onClose, vitalType, userId }: VitalChartPro
         setChartData(chartData);
       } else {
         // If no today data, just show the most recent entries as a fallback
-        console.log('No today data found, showing recent entries as fallback');
         const recentChartData: ChartDataPoint[] = data.slice(0, 10).map((record: any, index: number) => {
           return {
             time: `Entry ${index + 1}`,
@@ -244,8 +238,6 @@ export function VitalChart({ isOpen, onClose, vitalType, userId }: VitalChartPro
         dates.push(date);
       }
 
-      console.log('Fetching weekly data for dates:', dates.map(d => d.toDateString()));
-
       // Get all data from the past week
       const weekAgo = new Date(today);
       weekAgo.setDate(weekAgo.getDate() - 7);
@@ -262,8 +254,6 @@ export function VitalChart({ isOpen, onClose, vitalType, userId }: VitalChartPro
         console.error('Error fetching weekly data:', error);
         return;
       }
-
-      console.log(`Got ${data.length} records for weekly data`);
 
       // Group data by date and find last entry for each day
       const dailyData: { [dateKey: string]: any[] } = {};
@@ -323,7 +313,6 @@ export function VitalChart({ isOpen, onClose, vitalType, userId }: VitalChartPro
         }
       });
 
-      console.log('Weekly chart data:', chartData);
       setChartData(chartData);
 
     } catch (error) {

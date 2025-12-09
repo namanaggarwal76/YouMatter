@@ -7,7 +7,7 @@ import { Send, Bot, User, RefreshCw, AlertTriangle } from 'lucide-react';
 const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
 const API_URL_BASE = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=`;
 // NOTE: Must be empty string for the Canvas environment to inject the key at runtime
-const apiKey = "AIzaSyB7ur9J55WJGpNz1Ail-oiqlbYZ7-M9m_o"; 
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ""; 
 
 /**
  * Utility function to perform fetch with retry (exponential backoff).
@@ -111,8 +111,8 @@ ${message}
 
 // --- MOCKED EXTERNAL CONTEXT (Simplified for JSX) ---
 const useAuth = () => {
-    const addCoins = (amount) => console.log(`[Auth Mock] Rewarded ${amount} Coins for chat.`);
-    const addXP = (amount) => console.log(`[Auth Mock] Rewarded ${amount} XP for chat.`);
+    const addCoins = (amount) => {};
+    const addXP = (amount) => {};
     return { addCoins, addXP };
 };
 // --- END MOCKING ---
